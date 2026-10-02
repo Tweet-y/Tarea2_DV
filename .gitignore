@@ -113,3 +113,5 @@ graphify-out/
 !README.md
 .claude/
 .serena/
+# Plan local de HUD (documento de trabajo ignorado)
+/Plan-HUD-Botellas.md

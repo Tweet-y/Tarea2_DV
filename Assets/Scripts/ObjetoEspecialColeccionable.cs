@@ -1,9 +1,11 @@
 using UnityEngine;
 using UnityEngine.Events;
+using System;
 
 [RequireComponent(typeof(Collider))]
 public class ObjetoEspecialColeccionable : MonoBehaviour
 {
+    public static event Action<ObjetoEspecialColeccionable, GameObject> AlRecogerColeccionable;
     [Header("--- Puntuación y Eventos ---")]
     [Tooltip("Puntos que otorga este coleccionable")]
     public int puntos = 100;
@@ -46,6 +48,8 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     private Vector3 _posicionInicial;
     private bool _yaRecogido = false;
+
+    public bool YaRecogido => _yaRecogido;
 
     void Awake()
     {
@@ -131,6 +135,7 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     public void Recoger(GameObject jugador)
     {
+        if (_yaRecogido || jugador == null) return;
         _yaRecogido = true;
         Debug.Log($"<color=yellow>¡Objeto Especial Recogido!</color> {gameObject.name} por {jugador.name} (+{puntos} puntos)");
 
@@ -148,6 +153,7 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
         // 3. Disparar eventos configurados
         alRecoger?.Invoke();
+        AlRecogerColeccionable?.Invoke(this, jugador);
 
         // 4. Destruir el objeto
         Destroy(gameObject);
