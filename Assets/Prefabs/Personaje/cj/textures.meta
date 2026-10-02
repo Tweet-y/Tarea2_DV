@@ -1,5 +1,9 @@
 fileFormatVersion: 2
+<<<<<<< HEAD
 guid: 83e2b9975f9244a18a76027f8132834b
+=======
+guid: 4f6f28cc9e01e6d46b32bc4a0e32ecec
+>>>>>>> origin/vicente
 folderAsset: yes
 DefaultImporter:
   externalObjects: {}
