@@ -114,6 +114,18 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         BotellaRecogida?.Invoke();
     }
 
+    /// <summary>Aplica daño directo al jugador (aumenta la intoxicación / reduce la vida).</summary>
+    public void RecibirDanio(float cantidadDanio)
+    {
+        if (resultado != Resultado.EnCurso || cantidadDanio <= 0f) return;
+        ebriedad = Mathf.Min(limiteEbriedad, ebriedad + cantidadDanio);
+
+        if (ebriedad >= limiteEbriedad)
+            Finalizar(Resultado.Derrota);
+
+        EstadoActualizado?.Invoke();
+    }
+
     private void Finalizar(Resultado nuevoResultado)
     {
         if (resultado != Resultado.EnCurso) return;
