@@ -447,7 +447,7 @@ public static class ConfigurarPersonajeCJ
         var medida = MedirBounds(visual);
         var correccion = CorregirOrientacion(visual, medida, log);
         medida = correccion;
-        visual.transform.localPosition = new Vector3(0f, -medida.min.y, 0f);
+        visual.transform.localPosition = new Vector3(-medida.center.x, -medida.min.y, -medida.center.z);
         log.AppendLine("offset pies=" + visual.transform.localPosition.y + " alto=" + medida.size.y);
 
         var animator = visual.GetComponent<Animator>();
@@ -456,6 +456,10 @@ public static class ConfigurarPersonajeCJ
         animator.runtimeAnimatorController = controlador;
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+        // CJ conserva su pose original hasta contar con un rig compatible.
+        animator.enabled = false;
+        if (visual.GetComponent<CJLocomotionAnimation>() == null)
+            visual.AddComponent<CJLocomotionAnimation>();
 
         var camara = new GameObject("PlayerCameraRoot");
         camara.tag = "CinemachineTarget";
