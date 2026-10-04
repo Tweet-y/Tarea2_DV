@@ -143,14 +143,6 @@ public class TrampaDanio : MonoBehaviour
         {
             ControladorPartidaBotellas.Instancia.RecibirDanio(danio);
         }
-        else
-        {
-            var barra = FindAnyObjectByType<ControladorBarraSalud>();
-            if (barra != null)
-            {
-                barra.porcentajeSalud = Mathf.Max(0f, barra.porcentajeSalud - danio);
-            }
-        }
 
         alDañarJugador?.Invoke();
     }
