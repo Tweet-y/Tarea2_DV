@@ -456,7 +456,7 @@ public static class ConfigurarPersonajeCJ
         animator.runtimeAnimatorController = controlador;
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
-        // CJ conserva su pose original hasta contar con un rig compatible.
+        // Este FBX se anima con CJLocomotionAnimation sobre sus huesos originales.
         animator.enabled = false;
         if (visual.GetComponent<CJLocomotionAnimation>() == null)
             visual.AddComponent<CJLocomotionAnimation>();

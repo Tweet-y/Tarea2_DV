@@ -115,10 +115,12 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
         rightLeg.Bend(-swing - jumpBlend * 12f, axis);
         leftKnee.Bend(-leftBend - jumpBlend * 25f, axis);
         rightKnee.Bend(-rightBend - jumpBlend * 25f, axis);
-        leftFoot.Bend(-swing + leftBend * 0.6f, axis);
-        rightFoot.Bend(swing + rightBend * 0.6f, axis);
+        // Keep the shoes in the original ankle pose so their skin stays joined
+        // to the trouser cuffs while the knee and hip joints move.
+        leftFoot.Bend(0f, axis);
+        rightFoot.Bend(0f, axis);
         var breath = Mathf.Sin(Time.time * 2f) * 0.002f * (1f - motion);
-        hips.localPosition = hipPosition + player.up * breath;
+        hips.localPosition = hipPosition + Vector3.up * breath;
         head.localPosition = headPosition + Vector3.up * breath;
         var armSwing = swing * 0.7f;
         var leftRotation = Quaternion.AngleAxis(-armSwing - jumpBlend * 18f, Vector3.right);

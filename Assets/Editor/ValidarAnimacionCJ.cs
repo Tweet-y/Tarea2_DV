@@ -3,16 +3,14 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
-[InitializeOnLoad]
 public static class ValidarAnimacionCJ
 {
-    static ValidarAnimacionCJ() { EditorApplication.delayCall += Ejecutar; }
-    static void Ejecutar()
+    [MenuItem("Tools/CJ/Verificar animaciones")]
+    public static void Ejecutar()
     {
-        if (File.Exists("Logs/cj-procedural-v1-verificado.txt")) return;
         if (EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            EditorApplication.delayCall += Ejecutar;
+            Debug.LogWarning("Deten Play antes de verificar las animaciones de CJ.");
             return;
         }
         var preview = new PreviewRenderUtility();
@@ -51,6 +49,7 @@ public static class ValidarAnimacionCJ
             preview.camera.farClipPlane = 30f;
             preview.camera.fieldOfView = 30f;
             Directory.CreateDirectory("Logs");
+            var distances = new System.Text.StringBuilder();
             foreach (var pose in new[] {
                 (name: "idle", speed: 0f, phase: 0f, jump: 0f),
                 (name: "walk", speed: 2f, phase: 0.8f, jump: 0f),
@@ -60,6 +59,19 @@ public static class ValidarAnimacionCJ
                 (name: "jump", speed: 0f, phase: 0f, jump: 1f) })
             {
                 animation.ApplyPose(pose.speed, pose.phase, pose.jump);
+                var torso = root.GetComponentsInChildren<MeshFilter>();
+                foreach (var filter in torso)
+                {
+                    if (filter.name != "TORSO") continue;
+                    foreach (var hand in root.GetComponentsInChildren<Transform>())
+                    {
+                        if (hand.name != "MANO_IZQ" && hand.name != "MANO_DER") continue;
+                        var minimum = float.MaxValue;
+                        foreach (var v in filter.sharedMesh.vertices)
+                            minimum = Mathf.Min(minimum, Vector3.Distance(filter.transform.TransformPoint(v), hand.position));
+                        distances.AppendLine(pose.name + " " + hand.name + " wrist distance=" + minimum);
+                    }
+                }
                 preview.BeginPreview(new Rect(0f, 0f, 600f, 600f), GUIStyle.none);
                 preview.Render(true);
                 preview.Render(true);
@@ -73,7 +85,7 @@ public static class ValidarAnimacionCJ
                 RenderTexture.active = previous;
                 Object.DestroyImmediate(image);
             }
-            File.WriteAllText("Logs/cj-procedural-v1-verificado.txt", "Poses renderizadas: idle, walk, walk2, run, run2, jump.\n");
+            File.WriteAllText("Logs/cj-procedural-v2-verificado.txt", distances.ToString());
         }
         finally
         {
