@@ -20,6 +20,23 @@ public sealed class ControladorMenus : MonoBehaviour
     private GameObject carga;
     private bool cambiandoEscena;
 
+    private void OnEnable()
+    {
+        Registrar();
+        // Los listeners creados por código se pierden cuando Unity recompila en Play.
+        foreach (var boton in GetComponentsInChildren<Button>(true))
+        {
+            boton.onClick.RemoveAllListeners();
+            switch (boton.name)
+            {
+                case "Iniciar Juego":
+                case "Volver a jugar": boton.onClick.AddListener(() => Cargar(EscenaJuego)); break;
+                case "Ir al menú principal": boton.onClick.AddListener(() => Cargar(EscenaMenu)); break;
+                case "Salir": boton.onClick.AddListener(Salir); break;
+            }
+        }
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void Registrar()
     {
@@ -50,30 +67,56 @@ public sealed class ControladorMenus : MonoBehaviour
     {
         PrepararCanvas();
         Fondo(transform, "Fondo", Tinta);
-        var arte = Rect(transform, "IlustracionUrbana", new Vector2(.46f, 0), Vector2.one);
-        arte.gameObject.AddComponent<PostalCiudadGraphic>().raycastTarget = false;
-        var izquierda = Rect(transform, "Menu", Vector2.zero, new Vector2(.46f, 1));
-        var panel = izquierda.gameObject.AddComponent<Image>();
-        panel.color = Tinta;
-        panel.raycastTarget = false;
-        var contenido = Rect(izquierda, "Contenido", new Vector2(.5f, .5f), new Vector2(.5f, .5f));
-        contenido.sizeDelta = new Vector2(440, 620);
-        Texto(contenido, "Edicion", "HISTORIAS DE LA CALLE  /  HD", 0, 282, 440, 28, 14, Verde);
-        var titulo = Texto(contenido, "Titulo", "SUPER\nCOMPLETO\nMAN", 0, 150, 440, 235, 70, Color.white);
-        titulo.fontStyle = FontStyles.Bold;
-        titulo.lineSpacing = -22;
-        titulo.characterSpacing = -3;
-        Caja(contenido, "Linea", 0, 12, 62, 4, Verde);
-        Texto(contenido, "Descripcion", "La ciudad es tuya.\nRecoge las botellas. Sobrevive al recorrido.", 0, -36, 440, 54, 18, new Color32(182, 190, 181, 255));
-        primerBoton = Boton(contenido, "Iniciar Juego", 0, -127, 440, 64, Verde, () => Cargar(EscenaJuego));
-        Boton(contenido, "Salir", 0, -205, 440, 56, Color.white, Salir);
-        Texto(contenido, "Navegacion", "↑ ↓  SELECCIONAR     ENTER  CONFIRMAR", 0, -278, 440, 22, 12, new Color32(128, 142, 130, 255));
-        var pie = Texto(arte, "Lema", "CADA BOTELLA CUENTA.", 0, 0, 590, 38, 23, Tinta);
-        pie.rectTransform.anchorMin = pie.rectTransform.anchorMax = new Vector2(.5f, .12f);
-        pie.fontStyle = FontStyles.Bold;
-        pie.alignment = TextAlignmentOptions.Center;
+        var arte = Rect(transform, "CiudadPixelArt", Vector2.zero, Vector2.one);
+        var imagen = arte.gameObject.AddComponent<RawImage>();
+        var textura = Resources.Load<Texture2D>("Interfaz/MenuCiudadPixel");
+        imagen.texture = textura;
+        imagen.raycastTarget = false;
+        if (textura != null)
+        {
+            textura.filterMode = FilterMode.Point;
+            var ajuste = arte.gameObject.AddComponent<AspectRatioFitter>();
+            ajuste.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            ajuste.aspectRatio = (float)textura.width / textura.height;
+        }
+        var titulo = Rect(transform, "TituloPixel", new Vector2(.06f, .60f), new Vector2(.94f, .95f));
+        var letras = titulo.gameObject.AddComponent<TextoPixelGraphic>();
+        letras.Contenido = "SUPER COMPLETO\nMAN";
+        letras.color = new Color32(57, 216, 182, 255);
+        letras.ConSombra = true;
+        letras.raycastTarget = false;
+        var contenido = Rect(transform, "BotonesCentrados", new Vector2(.5f, .36f), new Vector2(.5f, .36f));
+        contenido.sizeDelta = new Vector2(300, 124);
+        primerBoton = BotonPixel(contenido, "Iniciar Juego", 32, () => Cargar(EscenaJuego));
+        BotonPixel(contenido, "Salir", -32, Salir);
         CrearCarga();
         if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
+    }
+
+    private static Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion)
+    {
+        Caja(padre, valor + "Sombra", 4, y - 5, 300, 56, new Color32(21, 22, 43, 255));
+        var rect = Caja(padre, valor, 0, y, 300, 56, Color.white);
+        var imagen = rect.GetComponent<Image>();
+        imagen.raycastTarget = true;
+        Caja(rect, "BordeSuperior", 0, 26, 300, 4, new Color32(250, 241, 235, 255));
+        Caja(rect, "BordeInferior", 0, -26, 300, 4, new Color32(109, 111, 129, 255));
+        var etiqueta = Rect(rect, "Etiqueta", new Vector2(.07f, .16f), new Vector2(.93f, .84f));
+        var texto = etiqueta.gameObject.AddComponent<TextoPixelGraphic>();
+        texto.Contenido = valor.ToUpperInvariant();
+        texto.color = new Color32(28, 44, 65, 255);
+        texto.raycastTarget = false;
+        var boton = rect.gameObject.AddComponent<Button>();
+        boton.targetGraphic = imagen;
+        var colores = boton.colors;
+        colores.normalColor = new Color32(202, 203, 212, 255);
+        colores.highlightedColor = new Color32(163, 236, 208, 255);
+        colores.selectedColor = colores.highlightedColor;
+        colores.pressedColor = new Color32(98, 184, 165, 255);
+        colores.fadeDuration = .08f;
+        boton.colors = colores;
+        boton.onClick.AddListener(accion);
+        return boton;
     }
 
     public void ConstruirResultado(bool victoria, string resumen, bool animar = true)

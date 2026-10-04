@@ -13,9 +13,11 @@ public static class ValidarMenus
     private static int paso;
     private static double inicio, desde;
     private static string informe;
+    private static double menuVisibleDesde;
 
     static ValidarMenus()
     {
+        if (File.Exists("Logs/menu-redisenio-captura.solicitud")) EditorApplication.update += CapturarRediseno;
         if (SessionState.GetBool("Menus.PruebaActiva", false))
         {
             paso = SessionState.GetInt("Menus.Paso", 0);
@@ -24,6 +26,20 @@ public static class ValidarMenus
             EditorApplication.playModeStateChanged += CambiarModo;
             EditorApplication.update += Avanzar;
         }
+    }
+
+    private static void CapturarRediseno()
+    {
+        if (!EditorApplication.isPlaying || SceneManager.GetActiveScene().name != ControladorMenus.EscenaMenu)
+        {
+            menuVisibleDesde = 0;
+            return;
+        }
+        if (menuVisibleDesde == 0) menuVisibleDesde = EditorApplication.timeSinceStartup;
+        if (EditorApplication.timeSinceStartup - menuVisibleDesde < 1) return;
+        ScreenCapture.CaptureScreenshot("Logs/menu-pixel-art-play.png");
+        File.Delete("Logs/menu-redisenio-captura.solicitud");
+        EditorApplication.update -= CapturarRediseno;
     }
 
     [MenuItem("Tools/Interfaz/Probar inicio muerte reinicio y salida")]

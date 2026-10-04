@@ -109,6 +109,18 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     void OnTriggerEnter(Collider other)
     {
+        IntentarRecoger(other);
+    }
+
+    // Si Unity recarga los scripts con un contacto existente, puede reanudarlo
+    // como Stay en vez de emitir otro Enter. La recogida sigue siendo única.
+    void OnTriggerStay(Collider other)
+    {
+        IntentarRecoger(other);
+    }
+
+    private void IntentarRecoger(Collider other)
+    {
         if (_yaRecogido) return;
 
         // Verificar si es el jugador (por tag o por componentes de control habituales)

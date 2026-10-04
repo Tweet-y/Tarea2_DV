@@ -7,6 +7,7 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public sealed class CJLocomotionAnimation : MonoBehaviour
 {
+    [Serializable]
     sealed class Joint
     {
         public Transform transform;
@@ -19,6 +20,7 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
         }
     }
 
+    [Serializable]
     sealed class Arm
     {
         public Vector3 shoulder, elbow, hand;
@@ -39,7 +41,7 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
 
     public void Initialize()
     {
-        if (initialized) return;
+        if (initialized && leftLeg != null && rightLeg != null && leftArm != null && rightArm != null) return;
         player = transform.parent;
         controller = GetComponentInParent<ThirdPersonController>();
         var animator = GetComponent<Animator>();
@@ -86,6 +88,11 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
     }
 
     void Awake() { Initialize(); }
+
+    void OnEnable()
+    {
+        if (Application.isPlaying) Initialize();
+    }
 
     void LateUpdate()
     {

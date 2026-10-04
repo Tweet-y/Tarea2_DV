@@ -22,6 +22,8 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     private readonly HashSet<ObjetoEspecialColeccionable> recogidas = new HashSet<ObjetoEspecialColeccionable>();
     private ObjetoEspecialColeccionable[] botellas;
     private int total;
+    private int cantidadRecogidas;
+    private int puntosAcumulados;
     private float ebriedad;
     private Resultado resultado = Resultado.EnCurso;
     private PlayerInput inputJugador;
@@ -29,7 +31,8 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     private float tiempoActualizacionHud;
 
     public int Total => total;
-    public int Recogidas => recogidas.Count;
+    public int Recogidas => cantidadRecogidas;
+    public int Puntos => puntosAcumulados;
     public int Restantes => Mathf.Max(0, total - Recogidas);
     public float Ebriedad => ebriedad;
     public float EbriedadNormalizada => Mathf.Clamp01(ebriedad / Mathf.Max(.01f, limiteEbriedad));
@@ -64,7 +67,6 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         Cursor.visible = false;
         botellas = FindObjectsByType<ObjetoEspecialColeccionable>(FindObjectsSortMode.None);
         total = botellas.Length;
-        ObjetoEspecialColeccionable.AlRecogerColeccionable += AlRecoger;
 
         var jugador = GameObject.FindGameObjectWithTag("Player");
         if (jugador != null)
@@ -78,11 +80,20 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         EstadoActualizado?.Invoke();
     }
 
-    private void OnDestroy()
+    private void OnEnable()
     {
-        if (Instancia != this) return;
+        if (Instancia != null && Instancia != this) return;
+        SceneManager.sceneLoaded -= AlCargarEscena;
+        SceneManager.sceneLoaded += AlCargarEscena;
+        Instancia = this;
         ObjetoEspecialColeccionable.AlRecogerColeccionable -= AlRecoger;
-        Instancia = null;
+        ObjetoEspecialColeccionable.AlRecogerColeccionable += AlRecoger;
+    }
+
+    private void OnDisable()
+    {
+        ObjetoEspecialColeccionable.AlRecogerColeccionable -= AlRecoger;
+        if (Instancia == this) Instancia = null;
     }
 
     private void Update()
@@ -105,6 +116,9 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     {
         if (resultado != Resultado.EnCurso || botella == null || !Array.Exists(botellas, b => b == botella)) return;
         if (!recogidas.Add(botella)) return;
+
+        cantidadRecogidas++;
+        puntosAcumulados += Mathf.Max(0, botella.puntos);
 
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + ebriedadPorBotella);
         // Debe completar el objetivo antes de alcanzar el límite de ebriedad.

@@ -8,7 +8,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
 {
     private ControladorPartidaBotellas partida;
     private RectTransform ebriedadFill, vidaFill, icono;
-    private TMP_Text contador, restantes, aviso, feedback;
+    private TMP_Text contador, restantes, aviso, feedback, puntos;
     private float objetivoEbriedad, objetivoVida = 1f, visualEbriedad, visualVida = 1f;
     private float tiempoPickup;
     private readonly List<Material> materialesTexto = new List<Material>();
@@ -17,10 +17,33 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     {
         partida = fuente;
         Construir();
+        ConectarEventos();
+        Actualizar();
+    }
+
+    private void OnEnable()
+    {
+        if (partida == null) return;
+        ConectarEventos();
+        Actualizar();
+    }
+
+    private void ConectarEventos()
+    {
+        DesconectarEventos();
         partida.EstadoActualizado += Actualizar;
         partida.BotellaRecogida += Recogida;
         partida.PartidaTerminada += MostrarResultado;
-        Actualizar();
+    }
+
+    private void OnDisable() => DesconectarEventos();
+
+    private void DesconectarEventos()
+    {
+        if (partida == null) return;
+        partida.EstadoActualizado -= Actualizar;
+        partida.BotellaRecogida -= Recogida;
+        partida.PartidaTerminada -= MostrarResultado;
     }
 
     private void OnDestroy()
@@ -59,6 +82,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         vidaFill = Barra(root, "PlayerHealth", new Vector2(0, -120), new Vector2(280, 20), new Color32(188, 37, 45, 255));
         restantes = Texto(root, "RemainingText", "QUEDAN 18", new Vector2(0, -146), new Vector2(280, 31), 29, new Color32(82, 142, 72, 255));
         aviso = Texto(root, "DangerStatus", "SOBRIO", new Vector2(0, -180), new Vector2(280, 22), 17, Color.white);
+        puntos = Texto(root, "Score", "PUNTOS 0000", new Vector2(0, -207), new Vector2(280, 22), 17, Color.white);
         feedback = Texto(root, "BottlePickupFeedback", "+1", new Vector2(48, -66), new Vector2(35, 26), 24, Color.white);
         feedback.gameObject.SetActive(false);
 
@@ -70,6 +94,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         objetivoVida = partida.Vida;
         contador.text = $"{partida.Recogidas:00} / {partida.Total:00}";
         restantes.text = $"QUEDAN {partida.Restantes}";
+        if (puntos != null) puntos.text = $"PUNTOS {partida.Puntos:0000}";
         aviso.text = objetivoEbriedad >= .85f ? "! PELIGRO DE DESMAYO !" :
             objetivoEbriedad >= .6f ? "MUY EBRIO" : objetivoEbriedad >= .3f ? "MAREADO" : "SOBRIO";
     }
