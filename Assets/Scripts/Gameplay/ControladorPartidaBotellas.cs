@@ -29,6 +29,10 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     private PlayerInput inputJugador;
     private StarterAssets.ThirdPersonController controladorJugador;
     private float tiempoActualizacionHud;
+    private ControladorMenus menuPausa;
+    private bool pausada, inputEstabaActivo, controladorEstabaActivo;
+    private bool cursorEstabaBloqueado, miradaEstabaActiva;
+    private float escalaAntesDePausa = 1f;
 
     public int Total => total;
     public int Recogidas => cantidadRecogidas;
@@ -38,6 +42,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     public float EbriedadNormalizada => Mathf.Clamp01(ebriedad / Mathf.Max(.01f, limiteEbriedad));
     public float Vida => 1f - EbriedadNormalizada;
     public Resultado Estado => resultado;
+    public bool EstaPausada => pausada;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void RegistrarCargaEscena()
@@ -63,6 +68,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
 
         Instancia = this;
         Time.timeScale = 1f;
+        AudioListener.pause = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         botellas = FindObjectsByType<ObjetoEspecialColeccionable>(FindObjectsSortMode.None);
@@ -98,7 +104,9 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
 
     private void Update()
     {
-        if (resultado != Resultado.EnCurso || ebriedadPorSegundo <= 0f) return;
+        if (resultado != Resultado.EnCurso) return;
+        if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) AlternarPausa();
+        if (pausada || ebriedadPorSegundo <= 0f) return;
         var anterior = ebriedad;
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + ebriedadPorSegundo * Time.deltaTime);
         if (Mathf.Approximately(anterior, ebriedad)) return;
@@ -112,9 +120,61 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         }
     }
 
+    public void AlternarPausa()
+    {
+        if (resultado != Resultado.EnCurso) return;
+        if (pausada) { Continuar(); return; }
+        pausada = true;
+        escalaAntesDePausa = Time.timeScale;
+        inputEstabaActivo = inputJugador != null && inputJugador.enabled;
+        controladorEstabaActivo = controladorJugador != null && controladorJugador.enabled;
+        var entradas = controladorJugador != null ? controladorJugador.GetComponent<StarterAssets.StarterAssetsInputs>() : null;
+        if (entradas != null)
+        {
+            cursorEstabaBloqueado = entradas.cursorLocked;
+            miradaEstabaActiva = entradas.cursorInputForLook;
+            entradas.cursorLocked = false;
+            entradas.cursorInputForLook = false;
+            entradas.MoveInput(Vector2.zero);
+            entradas.LookInput(Vector2.zero);
+            entradas.JumpInput(false);
+            entradas.SprintInput(false);
+        }
+        if (inputJugador != null) inputJugador.enabled = false;
+        if (controladorJugador != null) controladorJugador.enabled = false;
+        Time.timeScale = 0f;
+        AudioListener.pause = true;
+        menuPausa = new GameObject("MenuPausa", typeof(RectTransform)).AddComponent<ControladorMenus>();
+        menuPausa.ConstruirPausa();
+    }
+
+    public void Continuar()
+    {
+        if (!pausada || resultado != Resultado.EnCurso) return;
+        pausada = false;
+        if (menuPausa != null)
+        {
+            menuPausa.gameObject.SetActive(false);
+            Destroy(menuPausa.gameObject);
+            menuPausa = null;
+        }
+        var entradas = controladorJugador != null ? controladorJugador.GetComponent<StarterAssets.StarterAssetsInputs>() : null;
+        if (entradas != null)
+        {
+            entradas.cursorLocked = cursorEstabaBloqueado;
+            entradas.cursorInputForLook = miradaEstabaActiva;
+        }
+        if (inputJugador != null) inputJugador.enabled = inputEstabaActivo;
+        if (controladorJugador != null) controladorJugador.enabled = controladorEstabaActivo;
+        Time.timeScale = escalaAntesDePausa;
+        AudioListener.pause = false;
+        Cursor.lockState = cursorEstabaBloqueado ? CursorLockMode.Locked : CursorLockMode.None;
+        Cursor.visible = !cursorEstabaBloqueado;
+    }
+
     private void AlRecoger(ObjetoEspecialColeccionable botella, GameObject jugador)
     {
-        if (resultado != Resultado.EnCurso || botella == null || !Array.Exists(botellas, b => b == botella)) return;
+        if (pausada || resultado != Resultado.EnCurso || botella == null || !Array.Exists(botellas, b => b == botella)) return;
         if (!recogidas.Add(botella)) return;
 
         cantidadRecogidas++;
@@ -134,7 +194,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     /// <summary>Aplica daño directo al jugador (aumenta la intoxicación / reduce la vida).</summary>
     public void RecibirDanio(float cantidadDanio)
     {
-        if (resultado != Resultado.EnCurso || cantidadDanio <= 0f) return;
+        if (pausada || resultado != Resultado.EnCurso || cantidadDanio <= 0f) return;
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + cantidadDanio);
 
         if (ebriedad >= limiteEbriedad)

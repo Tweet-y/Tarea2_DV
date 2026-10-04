@@ -30,7 +30,9 @@ public sealed class ControladorMenus : MonoBehaviour
             switch (boton.name)
             {
                 case "Iniciar Juego":
+                case "Nuevo juego":
                 case "Volver a jugar": boton.onClick.AddListener(() => Cargar(EscenaJuego)); break;
+                case "Continuar": boton.onClick.AddListener(ContinuarPartida); break;
                 case "Ir al menú principal": boton.onClick.AddListener(() => Cargar(EscenaMenu)); break;
                 case "Salir": boton.onClick.AddListener(Salir); break;
             }
@@ -91,6 +93,32 @@ public sealed class ControladorMenus : MonoBehaviour
         BotonPixel(contenido, "Salir", -32, Salir);
         CrearCarga();
         if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
+    }
+
+    public void ConstruirPausa()
+    {
+        PrepararCanvas();
+        Fondo(transform, "FondoPausa", new Color(.025f, .018f, .065f, .85f));
+        var titulo = Rect(transform, "TituloPausa", new Vector2(.2f, .65f), new Vector2(.8f, .88f));
+        var letras = titulo.gameObject.AddComponent<TextoPixelGraphic>();
+        letras.Contenido = "PAUSA";
+        letras.color = new Color32(57, 216, 182, 255);
+        letras.ConSombra = true;
+        letras.raycastTarget = false;
+        var botones = Rect(transform, "BotonesPausa", new Vector2(.5f, .43f), new Vector2(.5f, .43f));
+        botones.sizeDelta = new Vector2(300, 190);
+        primerBoton = BotonPixel(botones, "Continuar", 64, ContinuarPartida);
+        BotonPixel(botones, "Nuevo juego", 0, () => Cargar(EscenaJuego));
+        BotonPixel(botones, "Salir", -64, Salir);
+        var pista = Texto(botones, "Atajo", "ESC PARA CONTINUAR", 0, -119, 400, 24, 15, new Color32(207, 195, 212, 255));
+        pista.alignment = TextAlignmentOptions.Center;
+        CrearCarga();
+        if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
+    }
+
+    private static void ContinuarPartida()
+    {
+        if (ControladorPartidaBotellas.Instancia != null) ControladorPartidaBotellas.Instancia.Continuar();
     }
 
     private static Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion)
@@ -218,6 +246,7 @@ public sealed class ControladorMenus : MonoBehaviour
         if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
         // La pantalla de carga sigue respondiendo aunque el resultado haya pausado el mundo.
         Time.timeScale = 1f;
+        AudioListener.pause = false;
         var operacion = SceneManager.LoadSceneAsync(escena, LoadSceneMode.Single);
         while (!operacion.isDone)
         {
@@ -231,6 +260,7 @@ public sealed class ControladorMenus : MonoBehaviour
     public void Salir()
     {
         Time.timeScale = 1f;
+        AudioListener.pause = false;
 #if UNITY_EDITOR
         UnityEditor.EditorApplication.isPlaying = false;
 #else

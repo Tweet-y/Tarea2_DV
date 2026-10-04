@@ -147,6 +147,7 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     public void Recoger(GameObject jugador)
     {
+        if (ControladorPartidaBotellas.Instancia != null && ControladorPartidaBotellas.Instancia.EstaPausada) return;
         if (_yaRecogido || jugador == null) return;
         _yaRecogido = true;
         Debug.Log($"<color=yellow>¡Objeto Especial Recogido!</color> {gameObject.name} por {jugador.name} (+{puntos} puntos)");
