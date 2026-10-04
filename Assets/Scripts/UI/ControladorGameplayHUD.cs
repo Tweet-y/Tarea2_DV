@@ -8,8 +8,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
 {
     private ControladorPartidaBotellas partida;
     private RectTransform ebriedadFill, vidaFill, icono;
-    private TMP_Text contador, restantes, aviso, feedback, titulo, resumen;
-    private GameObject resultado;
+    private TMP_Text contador, restantes, aviso, feedback;
     private float objetivoEbriedad, objetivoVida = 1f, visualEbriedad, visualVida = 1f;
     private float tiempoPickup;
     private readonly List<Material> materialesTexto = new List<Material>();
@@ -63,20 +62,6 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         feedback = Texto(root, "BottlePickupFeedback", "+1", new Vector2(48, -66), new Vector2(35, 26), 24, Color.white);
         feedback.gameObject.SetActive(false);
 
-        var overlay = Nodo(transform, "ResultPanel", Vector2.zero, Vector2.zero, Vector2.zero);
-        overlay.anchorMin = Vector2.zero;
-        overlay.anchorMax = Vector2.one;
-        overlay.offsetMin = overlay.offsetMax = Vector2.zero;
-        var backdrop = overlay.gameObject.AddComponent<Image>();
-        backdrop.color = new Color(0, 0, 0, .58f);
-        backdrop.raycastTarget = false;
-        var card = Nodo(overlay, "ResultMessage", new Vector2(.5f, .5f), new Vector2(-420, 70), new Vector2(840, 180));
-        titulo = Texto(card, "Title", "", Vector2.zero, new Vector2(840, 85), 55, Color.white);
-        titulo.alignment = TextAlignmentOptions.Center;
-        resumen = Texto(card, "Summary", "", new Vector2(0, -94), new Vector2(840, 45), 26, Color.white);
-        resumen.alignment = TextAlignmentOptions.Center;
-        resultado = overlay.gameObject;
-        resultado.SetActive(false);
     }
 
     private void Actualizar()
@@ -113,11 +98,10 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private void MostrarResultado(ControladorPartidaBotellas.Resultado estado)
     {
         Actualizar();
-        resultado.SetActive(true);
+        transform.Find("GameplayHUD").gameObject.SetActive(false);
         bool victoria = estado == ControladorPartidaBotellas.Resultado.Victoria;
-        titulo.text = victoria ? "¡TODAS RECOGIDAS!" : "¡TE DESMAYASTE!";
-        titulo.color = victoria ? new Color32(116, 185, 91, 255) : new Color32(222, 58, 53, 255);
-        resumen.text = $"{partida.Recogidas} / {partida.Total} BOTELLAS · QUEDAN {partida.Restantes}";
+        var menu = new GameObject("MenuResultado", typeof(RectTransform)).AddComponent<ControladorMenus>();
+        menu.ConstruirResultado(victoria, $"{partida.Recogidas} / {partida.Total} BOTELLAS RECOGIDAS");
     }
 
     private RectTransform Barra(Transform parent, string nombre, Vector2 pos, Vector2 size, Color color)

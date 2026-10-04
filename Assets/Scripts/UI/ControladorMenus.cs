@@ -1,0 +1,270 @@
+using System.Collections;
+using TMPro;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+/// <summary>Menú de inicio y resultado; cada nueva partida recarga completamente el mapa.</summary>
+public sealed class ControladorMenus : MonoBehaviour
+{
+    public const string EscenaMenu = "MenuInicio";
+    public const string EscenaJuego = "MapaV1";
+    private static readonly Color Verde = new Color32(170, 198, 99, 255);
+    private static readonly Color Tinta = new Color32(17, 21, 20, 255);
+    private CanvasGroup opciones;
+    private Button primerBoton;
+    private TMP_Text estadoCarga;
+    private Image progresoCarga;
+    private GameObject carga;
+    private bool cambiandoEscena;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void Registrar()
+    {
+        SceneManager.sceneLoaded -= EscenaCargada;
+        SceneManager.sceneLoaded += EscenaCargada;
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void AbrirMenuAlIniciar()
+    {
+        // También al pulsar Play con el mapa abierto en el editor.
+        if (SceneManager.GetActiveScene().name == EscenaJuego)
+            SceneManager.LoadScene(EscenaMenu);
+    }
+
+    private static void EscenaCargada(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name != EscenaMenu) return;
+        Time.timeScale = 1f;
+        // El menú anterior permanece en el archivo de escena, pero no se superpone al nuevo.
+        foreach (var canvas in FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            if (canvas.gameObject.scene == scene) canvas.gameObject.SetActive(false);
+        var menu = new GameObject("MenuPrincipal", typeof(RectTransform)).AddComponent<ControladorMenus>();
+        menu.ConstruirInicio();
+    }
+
+    public void ConstruirInicio()
+    {
+        PrepararCanvas();
+        Fondo(transform, "Fondo", Tinta);
+        var arte = Rect(transform, "IlustracionUrbana", new Vector2(.46f, 0), Vector2.one);
+        arte.gameObject.AddComponent<PostalCiudadGraphic>().raycastTarget = false;
+        var izquierda = Rect(transform, "Menu", Vector2.zero, new Vector2(.46f, 1));
+        var panel = izquierda.gameObject.AddComponent<Image>();
+        panel.color = Tinta;
+        panel.raycastTarget = false;
+        var contenido = Rect(izquierda, "Contenido", new Vector2(.5f, .5f), new Vector2(.5f, .5f));
+        contenido.sizeDelta = new Vector2(440, 620);
+        Texto(contenido, "Edicion", "HISTORIAS DE LA CALLE  /  HD", 0, 282, 440, 28, 14, Verde);
+        var titulo = Texto(contenido, "Titulo", "SUPER\nCOMPLETO\nMAN", 0, 150, 440, 235, 70, Color.white);
+        titulo.fontStyle = FontStyles.Bold;
+        titulo.lineSpacing = -22;
+        titulo.characterSpacing = -3;
+        Caja(contenido, "Linea", 0, 12, 62, 4, Verde);
+        Texto(contenido, "Descripcion", "La ciudad es tuya.\nRecoge las botellas. Sobrevive al recorrido.", 0, -36, 440, 54, 18, new Color32(182, 190, 181, 255));
+        primerBoton = Boton(contenido, "Iniciar Juego", 0, -127, 440, 64, Verde, () => Cargar(EscenaJuego));
+        Boton(contenido, "Salir", 0, -205, 440, 56, Color.white, Salir);
+        Texto(contenido, "Navegacion", "↑ ↓  SELECCIONAR     ENTER  CONFIRMAR", 0, -278, 440, 22, 12, new Color32(128, 142, 130, 255));
+        var pie = Texto(arte, "Lema", "CADA BOTELLA CUENTA.", 0, 0, 590, 38, 23, Tinta);
+        pie.rectTransform.anchorMin = pie.rectTransform.anchorMax = new Vector2(.5f, .12f);
+        pie.fontStyle = FontStyles.Bold;
+        pie.alignment = TextAlignmentOptions.Center;
+        CrearCarga();
+        if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
+    }
+
+    public void ConstruirResultado(bool victoria, string resumen, bool animar = true)
+    {
+        PrepararCanvas();
+        Fondo(transform, "Oscuridad", new Color(0.015f, .012f, .012f, .88f));
+        var banda = Rect(transform, "BandaTitulo", new Vector2(0, .40f), new Vector2(1, .70f));
+        banda.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .72f);
+        Color color = victoria ? Verde : (Color)new Color32(166, 42, 33, 255);
+        var titulo = Texto(banda, "TituloResultado", victoria ? "MISIÓN COMPLETADA" : "Haz Muerto", 0, 0, 1100, 120, victoria ? 62 : 82, color);
+        titulo.alignment = TextAlignmentOptions.Center;
+        titulo.characterSpacing = victoria ? 2 : 9;
+        titulo.fontStyle = victoria ? FontStyles.Bold : FontStyles.Normal;
+        var tituloGrupo = banda.gameObject.AddComponent<CanvasGroup>();
+        var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .28f), new Vector2(.5f, .28f));
+        rectOpciones.sizeDelta = new Vector2(500, 190);
+        opciones = rectOpciones.gameObject.AddComponent<CanvasGroup>();
+        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 85, 500, 28, 16, new Color32(159, 154, 144, 255));
+        detalle.alignment = TextAlignmentOptions.Center;
+        primerBoton = Boton(rectOpciones, "Volver a jugar", 0, 22, 500, 54, victoria ? Verde : (Color)new Color32(205, 175, 126, 255), () => Cargar(EscenaJuego));
+        Boton(rectOpciones, "Ir al menú principal", 0, -45, 500, 54, Color.white, () => Cargar(EscenaMenu));
+        CrearCarga();
+        if (animar && Application.isPlaying) StartCoroutine(EntradaMuerte(tituloGrupo));
+    }
+
+    private void PrepararCanvas()
+    {
+        var canvas = gameObject.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 100;
+        var scaler = gameObject.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1280, 720);
+        scaler.matchWidthOrHeight = 1f;
+        gameObject.AddComponent<GraphicRaycaster>();
+        if (!Application.isPlaying) return;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+        var sistema = EventSystem.current;
+        if (sistema == null) sistema = new GameObject("EventSystemMenus", typeof(EventSystem)).GetComponent<EventSystem>();
+        foreach (var module in sistema.GetComponents<BaseInputModule>())
+            if (!(module is InputSystemUIInputModule)) module.enabled = false;
+        var inputUI = sistema.GetComponent<InputSystemUIInputModule>();
+        if (inputUI == null) inputUI = sistema.gameObject.AddComponent<InputSystemUIInputModule>();
+        inputUI.enabled = true;
+        if (inputUI.actionsAsset == null) inputUI.AssignDefaultActions();
+    }
+
+    private IEnumerator EntradaMuerte(CanvasGroup titulo)
+    {
+        var fondo = GetComponent<Canvas>().transform.Find("Oscuridad").GetComponent<Image>();
+        var colorFinal = fondo.color;
+        opciones.alpha = 0;
+        opciones.interactable = opciones.blocksRaycasts = false;
+        titulo.alpha = 0;
+        float tiempo = 0;
+        while (tiempo < 2.2f)
+        {
+            tiempo += Time.unscaledDeltaTime;
+            titulo.alpha = Mathf.SmoothStep(0, 1, tiempo / 1.4f);
+            fondo.color = new Color(colorFinal.r, colorFinal.g, colorFinal.b, Mathf.Lerp(.2f, colorFinal.a, tiempo / 1.4f));
+            opciones.alpha = Mathf.Clamp01((tiempo - 1.6f) / .6f);
+            yield return null;
+        }
+        opciones.alpha = 1;
+        opciones.interactable = opciones.blocksRaycasts = true;
+        yield return Seleccionar(primerBoton);
+    }
+
+    private IEnumerator Seleccionar(Button boton)
+    {
+        yield return null;
+        if (EventSystem.current != null && boton != null) EventSystem.current.SetSelectedGameObject(boton.gameObject);
+    }
+
+    private void CrearCarga()
+    {
+        var rect = Fondo(transform, "PantallaCarga", Tinta);
+        estadoCarga = Texto(rect, "EstadoCarga", "CARGANDO LA CIUDAD…", 0, 15, 800, 54, 36, Color.white);
+        estadoCarga.alignment = TextAlignmentOptions.Center;
+        Caja(rect, "Carril", 0, -50, 500, 4, new Color32(51, 61, 49, 255));
+        var barra = Caja(rect, "Progreso", -250, -50, 500, 4, Verde);
+        barra.pivot = new Vector2(0, .5f);
+        progresoCarga = barra.GetComponent<Image>();
+        carga = rect.gameObject;
+        carga.SetActive(false);
+    }
+
+    public void Cargar(string escena)
+    {
+        if (cambiandoEscena) return;
+        cambiandoEscena = true;
+        StartCoroutine(CargarEscena(escena));
+    }
+
+    private IEnumerator CargarEscena(string escena)
+    {
+        carga.SetActive(true);
+        if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+        // La pantalla de carga sigue respondiendo aunque el resultado haya pausado el mundo.
+        Time.timeScale = 1f;
+        var operacion = SceneManager.LoadSceneAsync(escena, LoadSceneMode.Single);
+        while (!operacion.isDone)
+        {
+            float avance = Mathf.Clamp01(operacion.progress / .9f);
+            progresoCarga.rectTransform.localScale = new Vector3(avance, 1, 1);
+            estadoCarga.text = "CARGANDO… " + Mathf.RoundToInt(avance * 100) + "%";
+            yield return null;
+        }
+    }
+
+    public void Salir()
+    {
+        Time.timeScale = 1f;
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    private void OnApplicationFocus(bool foco)
+    {
+        if (!foco) return;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+    }
+
+    private static RectTransform Rect(Transform padre, string nombre, Vector2 min, Vector2 max)
+    {
+        var rect = new GameObject(nombre, typeof(RectTransform), typeof(CanvasRenderer)).GetComponent<RectTransform>();
+        rect.SetParent(padre, false);
+        rect.anchorMin = min;
+        rect.anchorMax = max;
+        rect.offsetMin = rect.offsetMax = Vector2.zero;
+        return rect;
+    }
+
+    private static RectTransform Fondo(Transform padre, string nombre, Color color)
+    {
+        var rect = Rect(padre, nombre, Vector2.zero, Vector2.one);
+        rect.gameObject.AddComponent<Image>().color = color;
+        return rect;
+    }
+
+    private static RectTransform Caja(Transform padre, string nombre, float x, float y, float ancho, float alto, Color color)
+    {
+        var rect = Rect(padre, nombre, new Vector2(.5f, .5f), new Vector2(.5f, .5f));
+        rect.anchoredPosition = new Vector2(x, y);
+        rect.sizeDelta = new Vector2(ancho, alto);
+        var imagen = rect.gameObject.AddComponent<Image>();
+        imagen.color = color;
+        imagen.raycastTarget = false;
+        return rect;
+    }
+
+    private static TMP_Text Texto(Transform padre, string nombre, string valor, float x, float y, float ancho, float alto, float tamano, Color color)
+    {
+        var rect = Rect(padre, nombre, new Vector2(.5f, .5f), new Vector2(.5f, .5f));
+        rect.anchoredPosition = new Vector2(x, y);
+        rect.sizeDelta = new Vector2(ancho, alto);
+        var text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+        text.font = TMP_Settings.defaultFontAsset;
+        text.text = valor;
+        text.fontSize = tamano;
+        text.color = color;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
+        text.raycastTarget = false;
+        text.alignment = TextAlignmentOptions.MidlineLeft;
+        return text;
+    }
+
+    private static Button Boton(Transform padre, string valor, float x, float y, float ancho, float alto, Color acento, UnityEngine.Events.UnityAction accion)
+    {
+        var rect = Caja(padre, valor, x, y, ancho, alto, new Color32(33, 39, 33, 255));
+        var fondo = rect.GetComponent<Image>();
+        fondo.color = Color.white;
+        fondo.raycastTarget = true;
+        Caja(rect, "Acento", -ancho / 2 + 2, 0, 4, alto, acento);
+        var texto = Texto(rect, "Etiqueta", valor, 12, 0, ancho - 48, alto, 24, Color.white);
+        texto.fontStyle = FontStyles.Bold;
+        var boton = rect.gameObject.AddComponent<Button>();
+        boton.targetGraphic = fondo;
+        var colores = boton.colors;
+        colores.normalColor = new Color32(33, 39, 33, 255);
+        colores.highlightedColor = acento;
+        colores.selectedColor = acento;
+        colores.pressedColor = new Color(.55f, .65f, .4f);
+        colores.fadeDuration = .12f;
+        boton.colors = colores;
+        boton.onClick.AddListener(accion);
+        return boton;
+    }
+}

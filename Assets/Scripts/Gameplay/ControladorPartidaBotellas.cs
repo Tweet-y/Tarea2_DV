@@ -59,6 +59,9 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         }
 
         Instancia = this;
+        Time.timeScale = 1f;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         botellas = FindObjectsByType<ObjetoEspecialColeccionable>(FindObjectsSortMode.None);
         total = botellas.Length;
         ObjetoEspecialColeccionable.AlRecogerColeccionable += AlRecoger;
@@ -132,6 +135,20 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         resultado = nuevoResultado;
         if (inputJugador != null) inputJugador.enabled = false;
         if (controladorJugador != null) controladorJugador.enabled = false;
+        if (controladorJugador != null)
+        {
+            var entradas = controladorJugador.GetComponent<StarterAssets.StarterAssetsInputs>();
+            if (entradas != null)
+            {
+                entradas.cursorLocked = false;
+                entradas.cursorInputForLook = false;
+                entradas.MoveInput(Vector2.zero);
+                entradas.LookInput(Vector2.zero);
+                entradas.JumpInput(false);
+                entradas.SprintInput(false);
+            }
+        }
+        Time.timeScale = 0f;
         PartidaTerminada?.Invoke(resultado);
     }
 }
