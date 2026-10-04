@@ -79749,6 +79749,10 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: c179ec151c9dd4f3182b5e3317994ce1, type: 2}
+    - target: {fileID: 5771101850360952012, guid: f3051a30d26f549bd80f21f5d662d26a, type: 3}
+      propertyPath: FootstepAudioVolume
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6958787412414793775, guid: f3051a30d26f549bd80f21f5d662d26a, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 

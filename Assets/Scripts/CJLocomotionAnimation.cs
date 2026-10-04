@@ -100,10 +100,17 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
         var delta = player.position - previousPosition;
         previousPosition = player.position;
         var targetSpeed = new Vector2(delta.x, delta.z).magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
-        speed = Mathf.Lerp(speed, Mathf.Min(targetSpeed, 7f), 1f - Mathf.Exp(-12f * Time.deltaTime));
+        speed = Mathf.Lerp(speed, Mathf.Min(targetSpeed, 7f), 1f - Mathf.Exp(-10f * Time.deltaTime));
         var grounded = controller == null || controller.Grounded;
-        airborne = Mathf.MoveTowards(airborne, grounded ? 0f : 1f, Time.deltaTime * 8f);
-        if (speed > 0.05f) phase += Time.deltaTime * Mathf.Lerp(5f, 11f, speed / 5.335f);
+        airborne = Mathf.MoveTowards(airborne, grounded ? 0f : 1f, Time.deltaTime * 6f);
+
+        // Step cadence synchronized with movement speed to eliminate sliding/skating
+        if (speed > 0.08f)
+        {
+            var strideCadence = Mathf.Lerp(4.2f, 3.4f, Mathf.Clamp01((speed - 2f) / 3.335f));
+            phase += Time.deltaTime * speed * strideCadence;
+        }
+
         ApplyPose(speed, phase, airborne);
     }
 
@@ -112,59 +119,91 @@ public sealed class CJLocomotionAnimation : MonoBehaviour
     {
         Initialize();
         transform.localPosition = restPosition;
-        var motion = Mathf.Clamp01(movementSpeed / 2f) * (1f - jumpBlend);
+        var motion = Mathf.Clamp01(movementSpeed / 1.2f) * (1f - jumpBlend);
         var run = Mathf.Clamp01((movementSpeed - 2f) / 3.335f);
-        var swing = Mathf.Sin(cycle) * Mathf.Lerp(18f, 30f, run) * motion;
-        var leftBend = Mathf.Max(0f, -Mathf.Cos(cycle)) * Mathf.Lerp(22f, 40f, run) * motion;
-        var rightBend = Mathf.Max(0f, Mathf.Cos(cycle)) * Mathf.Lerp(22f, 40f, run) * motion;
+
+        // Natural smooth gait waves
+        var sin = Mathf.Sin(cycle);
+        var cos = Mathf.Cos(cycle);
+
+        // Hip swing: in CJ's rig, negative angle is forward swing
+        var swingAmp = Mathf.Lerp(24f, 36f, run) * motion;
+        var leftHip = -sin * swingAmp - jumpBlend * 14f;
+        var rightHip = sin * swingAmp - jumpBlend * 14f;
+
+        // Knee bend: in CJ's rig, positive angle bends knee backward (lifts the foot off the ground)
+        // Left leg lifts during forward swing (sin > 0), right leg lifts during (sin < 0)
+        var kneeAmp = Mathf.Lerp(50f, 75f, run) * motion;
+        var leftKneeBend = Mathf.Max(0f, sin) * kneeAmp + (1f - jumpBlend) * 4f + jumpBlend * 35f;
+        var rightKneeBend = Mathf.Max(0f, -sin) * kneeAmp + (1f - jumpBlend) * 4f + jumpBlend * 35f;
+
+        // Ankle: slight natural give without exaggerated flapping
+        var leftFootAngle = (sin * 8f) * motion;
+        var rightFootAngle = (-sin * 8f) * motion;
+
         var axis = player.right;
-        leftLeg.Bend(swing - jumpBlend * 12f, axis);
-        rightLeg.Bend(-swing - jumpBlend * 12f, axis);
-        leftKnee.Bend(-leftBend - jumpBlend * 25f, axis);
-        rightKnee.Bend(-rightBend - jumpBlend * 25f, axis);
-        // Keep the shoes in the original ankle pose so their skin stays joined
-        // to the trouser cuffs while the knee and hip joints move.
-        leftFoot.Bend(0f, axis);
-        rightFoot.Bend(0f, axis);
+        leftLeg.Bend(leftHip, axis);
+        rightLeg.Bend(rightHip, axis);
+        leftKnee.Bend(leftKneeBend, axis);
+        rightKnee.Bend(rightKneeBend, axis);
+        leftFoot.Bend(leftFootAngle, axis);
+        rightFoot.Bend(rightFootAngle, axis);
+
+        // Smooth subtle weight transfer and idle breathing
+        var stepBob = -Mathf.Abs(sin) * Mathf.Lerp(0.02f, 0.04f, run) * motion;
         var breath = Mathf.Sin(Time.time * 2f) * 0.002f * (1f - motion);
-        hips.localPosition = hipPosition + Vector3.up * breath;
-        head.localPosition = headPosition + Vector3.up * breath;
-        var armSwing = swing * 0.7f;
-        var leftRotation = Quaternion.AngleAxis(-armSwing - jumpBlend * 18f, Vector3.right);
-        var rightRotation = Quaternion.AngleAxis(armSwing - jumpBlend * 18f, Vector3.right);
-        var elbowRotation = Quaternion.AngleAxis(run * 12f * motion + jumpBlend * 12f, Vector3.right);
-        Vector3 Map(Arm arm, Quaternion rotation, Vector3 p, float bendWeight)
+        hips.localPosition = hipPosition + Vector3.up * (stepBob + breath);
+        head.localPosition = headPosition + Vector3.up * (stepBob * 0.5f + breath);
+
+        // Arm swing in opposition to hips
+        var armAmp = swingAmp * 0.75f;
+        var leftArmAngle = sin * armAmp - jumpBlend * 18f;
+        var rightArmAngle = -sin * armAmp - jumpBlend * 18f;
+
+        var leftRotation = Quaternion.AngleAxis(leftArmAngle, Vector3.right);
+        var rightRotation = Quaternion.AngleAxis(rightArmAngle, Vector3.right);
+
+        // Dynamic elbow flexion: flexes forward (-angle) when arm is forward
+        var baseElbow = Mathf.Lerp(14f, 30f, run) * motion + (1f - motion) * 12f;
+        var leftElbowAngle = -(baseElbow + Mathf.Max(0f, -leftArmAngle) * Mathf.Lerp(1.2f, 1.8f, run) + jumpBlend * 30f);
+        var rightElbowAngle = -(baseElbow + Mathf.Max(0f, -rightArmAngle) * Mathf.Lerp(1.2f, 1.8f, run) + jumpBlend * 30f);
+
+        var leftElbowRotation = Quaternion.AngleAxis(leftElbowAngle, Vector3.right);
+        var rightElbowRotation = Quaternion.AngleAxis(rightElbowAngle, Vector3.right);
+
+        Vector3 Map(Arm arm, Quaternion rotation, Quaternion elbowRot, Vector3 p, float bendWeight)
         {
             var upper = arm.shoulder + rotation * (p - arm.shoulder);
-            var lower = arm.shoulder + rotation * (arm.elbow - arm.shoulder + elbowRotation * (p - arm.elbow));
+            var lower = arm.shoulder + rotation * (arm.elbow - arm.shoulder + elbowRot * (p - arm.elbow));
             return Vector3.Lerp(upper, lower, bendWeight);
         }
+
         for (var i = 0; i < restVertices.Length; i++)
         {
             var p = restVertices[i];
-            var arm = p.x >= 0f ? leftArm : rightArm;
-            var rotation = p.x >= 0f ? leftRotation : rightRotation;
+            var isLeft = p.x >= 0f;
+            var arm = isLeft ? leftArm : rightArm;
+            var rotation = isLeft ? leftRotation : rightRotation;
+            var elbowRot = isLeft ? leftElbowRotation : rightElbowRotation;
+
             var weight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.15f, 0.22f, Mathf.Abs(p.x)));
             weight *= 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(arm.shoulder.y, arm.shoulder.y + 0.12f, p.y));
             var lowerWeight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(arm.elbow.y + 0.05f, arm.elbow.y - 0.05f, p.y));
-            vertices[i] = Vector3.Lerp(p, Map(arm, rotation, p, lowerWeight), weight);
+            vertices[i] = Vector3.Lerp(p, Map(arm, rotation, elbowRot, p, lowerWeight), weight);
         }
+
         torsoMesh.vertices = vertices;
         torsoMesh.RecalculateNormals();
         torsoMesh.RecalculateBounds();
-        void MoveHand(Arm arm, Quaternion rotation)
+
+        void MoveHand(Arm arm, Quaternion rotation, Quaternion elbowRot)
         {
-            arm.handBone.position = torso.TransformPoint(Map(arm, rotation, arm.hand, 1f));
-            arm.handBone.rotation = player.rotation * rotation * elbowRotation * arm.handRotation;
+            arm.handBone.position = torso.TransformPoint(Map(arm, rotation, elbowRot, arm.hand, 1f));
+            arm.handBone.rotation = player.rotation * rotation * elbowRot * arm.handRotation;
         }
-        MoveHand(leftArm, leftRotation);
-        MoveHand(rightArm, rightRotation);
-        if (jumpBlend < 0.1f)
-        {
-            var height = Mathf.Min(player.InverseTransformPoint(leftFoot.transform.TransformPoint(leftSole)).y,
-                player.InverseTransformPoint(rightFoot.transform.TransformPoint(rightSole)).y);
-            transform.localPosition += Vector3.up * (originalSoleHeight - height);
-        }
+
+        MoveHand(leftArm, leftRotation, leftElbowRotation);
+        MoveHand(rightArm, rightRotation, rightElbowRotation);
     }
 
     void OnDestroy()
