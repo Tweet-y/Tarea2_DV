@@ -8,6 +8,7 @@ public sealed class TextoPixelGraphic : Graphic
 {
     public string Contenido = "";
     public bool ConSombra;
+    public int MaximoPixel;
     private static readonly Dictionary<char, string> Letras = new Dictionary<char, string>
     {
         ['A'] = "01110/10001/10001/11111/10001/10001/10001",
@@ -24,6 +25,7 @@ public sealed class TextoPixelGraphic : Graphic
         ['S'] = "01111/10000/10000/01110/00001/00001/11110",
         ['T'] = "11111/00100/00100/00100/00100/00100/00100",
         ['U'] = "10001/10001/10001/10001/10001/10001/01110",
+        ['Ú'] = "00010/00100/10001/10001/10001/10001/01110",
         ['V'] = "10001/10001/10001/10001/10001/01010/00100",
         ['G'] = "01111/10000/10000/10111/10001/10001/01111"
     };
@@ -36,6 +38,7 @@ public sealed class TextoPixelGraphic : Graphic
         foreach (var linea in lineas) ancho = Mathf.Max(ancho, linea.Length * 6 - 1);
         var rect = rectTransform.rect;
         float pixel = Mathf.Max(1, Mathf.Floor(Mathf.Min(rect.width / (ancho + 2), rect.height / (lineas.Length * 9))));
+        if (MaximoPixel > 0) pixel = Mathf.Min(pixel, MaximoPixel);
         float arriba = rect.center.y + (lineas.Length * 9 - 2) * pixel / 2;
         if (ConSombra)
         {

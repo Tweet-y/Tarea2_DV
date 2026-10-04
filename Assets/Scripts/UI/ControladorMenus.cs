@@ -69,6 +69,23 @@ public sealed class ControladorMenus : MonoBehaviour
     {
         PrepararCanvas();
         Fondo(transform, "Fondo", Tinta);
+        FondoPixel();
+        var titulo = Rect(transform, "TituloPixel", new Vector2(.06f, .60f), new Vector2(.94f, .95f));
+        var letras = titulo.gameObject.AddComponent<TextoPixelGraphic>();
+        letras.Contenido = "SUPER CURAO\nMAN";
+        letras.color = new Color32(57, 216, 182, 255);
+        letras.ConSombra = true;
+        letras.raycastTarget = false;
+        var contenido = Rect(transform, "BotonesCentrados", new Vector2(.5f, .36f), new Vector2(.5f, .36f));
+        contenido.sizeDelta = new Vector2(300, 124);
+        primerBoton = BotonPixel(contenido, "Iniciar Juego", 32, () => Cargar(EscenaJuego));
+        BotonPixel(contenido, "Salir", -32, Salir);
+        CrearCarga();
+        if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
+    }
+
+    private void FondoPixel()
+    {
         var arte = Rect(transform, "CiudadPixelArt", Vector2.zero, Vector2.one);
         var imagen = arte.gameObject.AddComponent<RawImage>();
         var textura = Resources.Load<Texture2D>("Interfaz/MenuCiudadPixel");
@@ -81,18 +98,6 @@ public sealed class ControladorMenus : MonoBehaviour
             ajuste.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
             ajuste.aspectRatio = (float)textura.width / textura.height;
         }
-        var titulo = Rect(transform, "TituloPixel", new Vector2(.06f, .60f), new Vector2(.94f, .95f));
-        var letras = titulo.gameObject.AddComponent<TextoPixelGraphic>();
-        letras.Contenido = "SUPER COMPLETO\nMAN";
-        letras.color = new Color32(57, 216, 182, 255);
-        letras.ConSombra = true;
-        letras.raycastTarget = false;
-        var contenido = Rect(transform, "BotonesCentrados", new Vector2(.5f, .36f), new Vector2(.5f, .36f));
-        contenido.sizeDelta = new Vector2(300, 124);
-        primerBoton = BotonPixel(contenido, "Iniciar Juego", 32, () => Cargar(EscenaJuego));
-        BotonPixel(contenido, "Salir", -32, Salir);
-        CrearCarga();
-        if (Application.isPlaying) StartCoroutine(Seleccionar(primerBoton));
     }
 
     public void ConstruirPausa()
@@ -121,17 +126,18 @@ public sealed class ControladorMenus : MonoBehaviour
         if (ControladorPartidaBotellas.Instancia != null) ControladorPartidaBotellas.Instancia.Continuar();
     }
 
-    private static Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion)
+    private static Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion, float ancho = 300)
     {
-        Caja(padre, valor + "Sombra", 4, y - 5, 300, 56, new Color32(21, 22, 43, 255));
-        var rect = Caja(padre, valor, 0, y, 300, 56, Color.white);
+        Caja(padre, valor + "Sombra", 4, y - 5, ancho, 56, new Color32(21, 22, 43, 255));
+        var rect = Caja(padre, valor, 0, y, ancho, 56, Color.white);
         var imagen = rect.GetComponent<Image>();
         imagen.raycastTarget = true;
-        Caja(rect, "BordeSuperior", 0, 26, 300, 4, new Color32(250, 241, 235, 255));
-        Caja(rect, "BordeInferior", 0, -26, 300, 4, new Color32(109, 111, 129, 255));
+        Caja(rect, "BordeSuperior", 0, 26, ancho, 4, new Color32(250, 241, 235, 255));
+        Caja(rect, "BordeInferior", 0, -26, ancho, 4, new Color32(109, 111, 129, 255));
         var etiqueta = Rect(rect, "Etiqueta", new Vector2(.07f, .16f), new Vector2(.93f, .84f));
         var texto = etiqueta.gameObject.AddComponent<TextoPixelGraphic>();
         texto.Contenido = valor.ToUpperInvariant();
+        texto.MaximoPixel = 3;
         texto.color = new Color32(28, 44, 65, 255);
         texto.raycastTarget = false;
         var boton = rect.gameObject.AddComponent<Button>();
@@ -150,7 +156,8 @@ public sealed class ControladorMenus : MonoBehaviour
     public void ConstruirResultado(bool victoria, string resumen, bool animar = true)
     {
         PrepararCanvas();
-        Fondo(transform, "Oscuridad", new Color(0.015f, .012f, .012f, .88f));
+        FondoPixel();
+        Fondo(transform, "Oscuridad", new Color(.025f, .018f, .065f, .84f));
         var banda = Rect(transform, "BandaTitulo", new Vector2(0, .40f), new Vector2(1, .70f));
         banda.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .72f);
         Color color = victoria ? Verde : (Color)new Color32(166, 42, 33, 255);
@@ -162,10 +169,10 @@ public sealed class ControladorMenus : MonoBehaviour
         var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .28f), new Vector2(.5f, .28f));
         rectOpciones.sizeDelta = new Vector2(500, 190);
         opciones = rectOpciones.gameObject.AddComponent<CanvasGroup>();
-        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 85, 500, 28, 16, new Color32(159, 154, 144, 255));
+        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 85, 500, 28, 16, new Color32(207, 195, 212, 255));
         detalle.alignment = TextAlignmentOptions.Center;
-        primerBoton = Boton(rectOpciones, "Volver a jugar", 0, 22, 500, 54, victoria ? Verde : (Color)new Color32(205, 175, 126, 255), () => Cargar(EscenaJuego));
-        Boton(rectOpciones, "Ir al menú principal", 0, -45, 500, 54, Color.white, () => Cargar(EscenaMenu));
+        primerBoton = BotonPixel(rectOpciones, "Volver a jugar", 22, () => Cargar(EscenaJuego), 440);
+        BotonPixel(rectOpciones, "Ir al menú principal", -45, () => Cargar(EscenaMenu), 440);
         CrearCarga();
         if (animar && Application.isPlaying) StartCoroutine(EntradaMuerte(tituloGrupo));
     }
