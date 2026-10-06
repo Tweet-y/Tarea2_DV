@@ -83,7 +83,7 @@ public sealed class ControladorMenus : MonoBehaviour
         }
         var titulo = Rect(transform, "TituloPixel", new Vector2(.06f, .60f), new Vector2(.94f, .95f));
         var letras = titulo.gameObject.AddComponent<TextoPixelGraphic>();
-        letras.Contenido = "SUPER COMPLETO\nMAN";
+        letras.Contenido = "SUPER CURAO\nMAN";
         letras.color = new Color32(57, 216, 182, 255);
         letras.ConSombra = true;
         letras.raycastTarget = false;

@@ -71,7 +71,12 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         AudioListener.pause = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
-        botellas = FindObjectsByType<ObjetoEspecialColeccionable>(FindObjectsSortMode.None);
+        // Contar todos los coleccionables de este mapa, incluso en objetos
+        // inactivos, sin incluir objetos de otras escenas cargadas.
+        var botellasDelMapa = new List<ObjetoEspecialColeccionable>();
+        foreach (var raiz in gameObject.scene.GetRootGameObjects())
+            botellasDelMapa.AddRange(raiz.GetComponentsInChildren<ObjetoEspecialColeccionable>(true));
+        botellas = botellasDelMapa.ToArray();
         total = botellas.Length;
 
         var jugador = GameObject.FindGameObjectWithTag("Player");
@@ -180,7 +185,10 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         cantidadRecogidas++;
         puntosAcumulados += Mathf.Max(0, botella.puntos);
 
-        ebriedad = Mathf.Min(limiteEbriedad, ebriedad + ebriedadPorBotella);
+        // Reservar margen para el tiempo y las trampas aunque aumente el
+        // numero de botellas: recogerlas todas no debe causar derrota por si solo.
+        float incremento = Mathf.Min(ebriedadPorBotella, limiteEbriedad * .8f / Mathf.Max(1, total));
+        ebriedad = Mathf.Min(limiteEbriedad, ebriedad + incremento);
         // Debe completar el objetivo antes de alcanzar el límite de ebriedad.
         if (ebriedad >= limiteEbriedad)
             Finalizar(Resultado.Derrota);
@@ -200,6 +208,14 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         if (ebriedad >= limiteEbriedad)
             Finalizar(Resultado.Derrota);
 
+        EstadoActualizado?.Invoke();
+    }
+
+    public void Morir()
+    {
+        if (pausada || resultado != Resultado.EnCurso) return;
+        ebriedad = limiteEbriedad;
+        Finalizar(Resultado.Derrota);
         EstadoActualizado?.Invoke();
     }
 
