@@ -11,6 +11,8 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private TMP_Text contador, restantes, aviso, feedback, puntos;
     private float objetivoEbriedad, objetivoVida = 1f, visualEbriedad, visualVida = 1f;
     private float tiempoPickup;
+    private RectTransform objetivoInicial;
+    private float tiempoObjetivo = 8f;
     private readonly List<Material> materialesTexto = new List<Material>();
 
     public void Inicializar(ControladorPartidaBotellas fuente)
@@ -75,16 +77,28 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         var botella = Nodo(icono, "BeerSilhouette", new Vector2(0, 1), new Vector2(13, -8), new Vector2(62, 74));
         botella.gameObject.AddComponent<BottleHudGraphic>().raycastTarget = false;
 
-        contador = Texto(root, "BottleCounter", "00 / 18", new Vector2(99, 0), new Vector2(181, 36), 34, Color.white);
+        contador = Texto(root, "BottleCounter", $"00 / {partida.Total:00}", new Vector2(99, 0), new Vector2(181, 36), 34, Color.white);
         Texto(root, "DrunkLabel", "EBRIEDAD", new Vector2(101, -40), new Vector2(179, 20), 17, Color.white);
         ebriedadFill = Barra(root, "DrunkMeter", new Vector2(99, -63), new Vector2(181, 17), new Color32(205, 205, 205, 255));
         Texto(root, "HealthLabel", "VIDA", new Vector2(0, -98), new Vector2(280, 20), 17, Color.white);
         vidaFill = Barra(root, "PlayerHealth", new Vector2(0, -120), new Vector2(280, 20), new Color32(188, 37, 45, 255));
-        restantes = Texto(root, "RemainingText", "QUEDAN 18", new Vector2(0, -146), new Vector2(280, 31), 29, new Color32(82, 142, 72, 255));
+        restantes = Texto(root, "RemainingText", $"QUEDAN {partida.Total}", new Vector2(0, -146), new Vector2(280, 31), 29, new Color32(82, 142, 72, 255));
         aviso = Texto(root, "DangerStatus", "SOBRIO", new Vector2(0, -180), new Vector2(280, 22), 17, Color.white);
         puntos = Texto(root, "Score", "PUNTOS 0000", new Vector2(0, -207), new Vector2(280, 22), 17, Color.white);
         feedback = Texto(root, "BottlePickupFeedback", "+1", new Vector2(48, -66), new Vector2(35, 26), 24, Color.white);
         feedback.gameObject.SetActive(false);
+
+        objetivoInicial = Nodo(transform, "ObjetivoInicial", new Vector2(.5f, 0f),
+            new Vector2(0, 42), new Vector2(900, 106));
+        objetivoInicial.pivot = new Vector2(.5f, 0f);
+        var fondoObjetivo = objetivoInicial.gameObject.AddComponent<Image>();
+        fondoObjetivo.color = new Color32(17, 21, 20, 225);
+        fondoObjetivo.raycastTarget = false;
+        var objetivo = Texto(objetivoInicial, "TextoObjetivo",
+            "OBJETIVO\nRecoge todas las botellas para quedar lo más borracho que puedas.",
+            new Vector2(24, -12), new Vector2(852, 82), 26, Color.white);
+        objetivo.alignment = TextAlignmentOptions.Center;
+        objetivo.textWrappingMode = TextWrappingModes.Normal;
 
     }
 
@@ -102,6 +116,11 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private void Update()
     {
         if (partida == null) return;
+        if (objetivoInicial != null && objetivoInicial.gameObject.activeSelf && !partida.EstaPausada)
+        {
+            tiempoObjetivo = Mathf.Max(0f, tiempoObjetivo - Time.deltaTime);
+            if (tiempoObjetivo <= 0f) objetivoInicial.gameObject.SetActive(false);
+        }
         visualEbriedad = Mathf.MoveTowards(visualEbriedad, objetivoEbriedad, Time.unscaledDeltaTime * 2f);
         visualVida = Mathf.MoveTowards(visualVida, objetivoVida, Time.unscaledDeltaTime * 2f);
         ebriedadFill.localScale = new Vector3(visualEbriedad, 1, 1);
@@ -124,6 +143,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     {
         Actualizar();
         transform.Find("GameplayHUD").gameObject.SetActive(false);
+        if (objetivoInicial != null) objetivoInicial.gameObject.SetActive(false);
         bool victoria = estado == ControladorPartidaBotellas.Resultado.Victoria;
         var menu = new GameObject("MenuResultado", typeof(RectTransform)).AddComponent<ControladorMenus>();
         menu.ConstruirResultado(victoria, $"{partida.Recogidas} / {partida.Total} BOTELLAS RECOGIDAS");
