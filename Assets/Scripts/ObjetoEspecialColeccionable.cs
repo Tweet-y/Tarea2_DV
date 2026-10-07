@@ -5,6 +5,9 @@ using System;
 [RequireComponent(typeof(Collider))]
 public class ObjetoEspecialColeccionable : MonoBehaviour
 {
+    public enum TipoBotella { Objetivo, Curativa }
+    public TipoBotella tipo;
+    [Range(0f, .2f)] public float curacion = .08f;
     public static event Action<ObjetoEspecialColeccionable, GameObject> AlRecogerColeccionable;
     [Header("--- Puntuación y Eventos ---")]
     [Tooltip("Puntos que otorga este coleccionable")]
@@ -147,7 +150,8 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     public void Recoger(GameObject jugador)
     {
-        if (ControladorPartidaBotellas.Instancia != null && ControladorPartidaBotellas.Instancia.EstaPausada) return;
+        var partida = ControladorPartidaBotellas.Instancia;
+        if (partida != null && (partida.EstaPausada || partida.Estado != ControladorPartidaBotellas.Resultado.EnCurso)) return;
         if (_yaRecogido || jugador == null) return;
         _yaRecogido = true;
         Debug.Log($"<color=yellow>¡Objeto Especial Recogido!</color> {gameObject.name} por {jugador.name} (+{puntos} puntos)");

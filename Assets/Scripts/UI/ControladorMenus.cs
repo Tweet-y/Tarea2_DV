@@ -156,15 +156,23 @@ public sealed class ControladorMenus : MonoBehaviour
     public void ConstruirResultado(bool victoria, string resumen, bool animar = true)
     {
         PrepararCanvas();
-        FondoPixel();
-        Fondo(transform, "Oscuridad", new Color(.025f, .018f, .065f, .84f));
+        if (!victoria) FondoPixel();
+        Fondo(transform, "Oscuridad", new Color(.025f, .018f, .065f, victoria ? .55f : .84f));
         var banda = Rect(transform, "BandaTitulo", new Vector2(0, .40f), new Vector2(1, .70f));
         banda.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .72f);
-        Color color = victoria ? Verde : (Color)new Color32(166, 42, 33, 255);
-        var titulo = Texto(banda, "TituloResultado", victoria ? "MISIÓN COMPLETADA" : "Haz Muerto", 0, 0, 1100, 120, victoria ? 62 : 82, color);
+        Color color = victoria ? new Color32(255, 183, 36, 255) : (Color)new Color32(166, 42, 33, 255);
+        var titulo = Texto(banda, "TituloResultado", victoria ? "mission passed!" : "Haz Muerto", 0, victoria ? 34 : 0, 1100, 100, victoria ? 78 : 82, color);
         titulo.alignment = TextAlignmentOptions.Center;
-        titulo.characterSpacing = victoria ? 2 : 9;
+        titulo.characterSpacing = victoria ? -3 : 9;
         titulo.fontStyle = victoria ? FontStyles.Bold : FontStyles.Normal;
+        if (victoria)
+        {
+            EstiloSanAndreas(titulo);
+            var respeto = Texto(banda, "RespetoVictoria", "RESPECT + 99", 0, -47, 1100, 72, 52, Color.white);
+            respeto.alignment = TextAlignmentOptions.Center;
+            respeto.fontStyle = FontStyles.Bold;
+            EstiloSanAndreas(respeto);
+        }
         var tituloGrupo = banda.gameObject.AddComponent<CanvasGroup>();
         var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .28f), new Vector2(.5f, .28f));
         rectOpciones.sizeDelta = new Vector2(500, 190);
@@ -175,6 +183,20 @@ public sealed class ControladorMenus : MonoBehaviour
         BotonPixel(rectOpciones, "Ir al menú principal", -45, () => Cargar(EscenaMenu), 440);
         CrearCarga();
         if (animar && Application.isPlaying) StartCoroutine(EntradaMuerte(tituloGrupo));
+    }
+
+    private void EstiloSanAndreas(TMP_Text texto)
+    {
+        var material = new Material(texto.fontSharedMaterial);
+        texto.fontMaterial = material;
+        texto.outlineColor = Color.black;
+        texto.outlineWidth = .3f;
+        materialesResultado.Add(material);
+    }
+    private readonly System.Collections.Generic.List<Material> materialesResultado = new System.Collections.Generic.List<Material>();
+    private void OnDestroy()
+    {
+        foreach (var material in materialesResultado) Destroy(material);
     }
 
     private void PrepararCanvas()

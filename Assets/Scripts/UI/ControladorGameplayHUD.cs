@@ -11,6 +11,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private TMP_Text contador, restantes, aviso, feedback, puntos;
     private float objetivoEbriedad, objetivoVida = 1f, visualEbriedad, visualVida = 1f;
     private float tiempoPickup;
+    private RectTransform marcoMapa, vidaMapa, ebriedadMapa;
     private RectTransform objetivoInicial;
     private float tiempoObjetivo = 8f;
     private readonly List<Material> materialesTexto = new List<Material>();
@@ -35,6 +36,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         DesconectarEventos();
         partida.EstadoActualizado += Actualizar;
         partida.BotellaRecogida += Recogida;
+        partida.BotellaCurativaRecogida += CuracionRecogida;
         partida.PartidaTerminada += MostrarResultado;
     }
 
@@ -45,6 +47,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         if (partida == null) return;
         partida.EstadoActualizado -= Actualizar;
         partida.BotellaRecogida -= Recogida;
+        partida.BotellaCurativaRecogida -= CuracionRecogida;
         partida.PartidaTerminada -= MostrarResultado;
     }
 
@@ -68,6 +71,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280, 720);
         scaler.matchWidthOrHeight = .5f;
+        ConstruirMapa();
 
         var root = Nodo(transform, "GameplayHUD", new Vector2(1, 1), new Vector2(-30, -26), new Vector2(280, 188));
         root.pivot = new Vector2(1, 1);
@@ -95,11 +99,52 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         fondoObjetivo.color = new Color32(17, 21, 20, 225);
         fondoObjetivo.raycastTarget = false;
         var objetivo = Texto(objetivoInicial, "TextoObjetivo",
-            "OBJETIVO\nRecoge todas las botellas para quedar lo más borracho que puedas.",
+            "Recoge todas las botellas. Azules: +8% de vida.\nM: mapa · Explora para revelar zonas de búsqueda · Cuidado al caer.",
             new Vector2(24, -12), new Vector2(852, 82), 26, Color.white);
         objetivo.alignment = TextAlignmentOptions.Center;
         objetivo.textWrappingMode = TextWrappingModes.Normal;
 
+    }
+
+    private void ConstruirMapa()
+    {
+        marcoMapa = Nodo(transform, "MapaCiudad", Vector2.zero, new Vector2(24, 24), new Vector2(256, 296));
+        marcoMapa.pivot = Vector2.zero;
+        var borde = Nodo(marcoMapa, "BordeRadar", Vector2.zero, Vector2.zero, Vector2.zero);
+        borde.anchorMin = Vector2.zero; borde.anchorMax = Vector2.one;
+        borde.offsetMin = new Vector2(8, 44); borde.offsetMax = new Vector2(-8, -12);
+        var disco = borde.gameObject.AddComponent<MapaDiscoGraphic>();
+        disco.color = Color.black;
+        disco.raycastTarget = false;
+        var mascara = Nodo(borde, "MascaraCircular", Vector2.zero, Vector2.zero, Vector2.zero);
+        mascara.anchorMin = Vector2.zero; mascara.anchorMax = Vector2.one;
+        mascara.offsetMin = Vector2.one * 10f; mascara.offsetMax = -Vector2.one * 10f;
+        mascara.gameObject.AddComponent<MapaDiscoGraphic>().raycastTarget = false;
+        mascara.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+        var mapa = Nodo(mascara, "PlanoCiudad", Vector2.zero, Vector2.zero, Vector2.zero);
+        mapa.anchorMin = Vector2.zero; mapa.anchorMax = Vector2.one;
+        mapa.offsetMin = mapa.offsetMax = Vector2.zero;
+        mapa.gameObject.AddComponent<MapaCiudadGraphic>().Inicializar(partida, marcoMapa);
+        var cj = Texto(borde, "IdentificadorCJ", "CJ", Vector2.zero, new Vector2(42, 36), 27, Color.white);
+        cj.rectTransform.anchorMin = cj.rectTransform.anchorMax = new Vector2(0, .5f);
+        cj.rectTransform.pivot = new Vector2(.5f, .5f);
+        cj.alignment = TextAlignmentOptions.Center;
+        var norte = Texto(borde, "IndicadorNorte", "N", Vector2.zero, new Vector2(36, 36), 27, Color.white);
+        norte.rectTransform.anchorMin = norte.rectTransform.anchorMax = new Vector2(.5f, 1);
+        norte.rectTransform.pivot = new Vector2(.5f, .5f);
+        norte.alignment = TextAlignmentOptions.Center;
+        var leyenda = Texto(marcoMapa, "LeyendaMapa", "N ↑   EXPLORA · M: MAPA", new Vector2(8, -256), new Vector2(240, 16), 12, new Color32(250, 215, 74, 255));
+        leyenda.rectTransform.anchorMin = leyenda.rectTransform.anchorMax = Vector2.zero;
+        leyenda.rectTransform.anchoredPosition = new Vector2(8, 39);
+        leyenda.alignment = TextAlignmentOptions.Center;
+        vidaMapa = Barra(marcoMapa, "VidaMapa", Vector2.zero, new Vector2(118, 11), new Color32(198, 51, 56, 255));
+        var barraVida = (RectTransform)vidaMapa.parent.parent;
+        barraVida.anchorMin = barraVida.anchorMax = Vector2.zero;
+        barraVida.anchoredPosition = new Vector2(8, 20);
+        ebriedadMapa = Barra(marcoMapa, "EbriedadMapa", Vector2.zero, new Vector2(118, 11), new Color32(238, 207, 58, 255));
+        var barraEbriedad = (RectTransform)ebriedadMapa.parent.parent;
+        barraEbriedad.anchorMin = barraEbriedad.anchorMax = Vector2.zero;
+        barraEbriedad.anchoredPosition = new Vector2(130, 20);
     }
 
     private void Actualizar()
@@ -125,6 +170,8 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         visualVida = Mathf.MoveTowards(visualVida, objetivoVida, Time.unscaledDeltaTime * 2f);
         ebriedadFill.localScale = new Vector3(visualEbriedad, 1, 1);
         vidaFill.localScale = new Vector3(visualVida, 1, 1);
+        vidaMapa.localScale = new Vector3(visualVida, 1, 1);
+        ebriedadMapa.localScale = new Vector3(visualEbriedad, 1, 1);
         aviso.color = objetivoEbriedad >= .85f
             ? Color.Lerp(Color.white, new Color32(255, 90, 75, 255), .5f + .5f * Mathf.Sin(Time.unscaledTime * 7))
             : Color.white;
@@ -137,12 +184,25 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         else icono.localScale = Vector3.one;
     }
 
-    private void Recogida() => tiempoPickup = .45f;
+    private void Recogida()
+    {
+        tiempoPickup = .45f;
+        feedback.text = "+1";
+        feedback.color = Color.white;
+    }
+    private void CuracionRecogida()
+    {
+        tiempoPickup = .8f;
+        feedback.text = "+VIDA";
+        feedback.color = new Color32(65, 180, 255, 255);
+        feedback.rectTransform.sizeDelta = new Vector2(90, 26);
+    }
 
     private void MostrarResultado(ControladorPartidaBotellas.Resultado estado)
     {
         Actualizar();
         transform.Find("GameplayHUD").gameObject.SetActive(false);
+        marcoMapa.gameObject.SetActive(false);
         if (objetivoInicial != null) objetivoInicial.gameObject.SetActive(false);
         bool victoria = estado == ControladorPartidaBotellas.Resultado.Victoria;
         var menu = new GameObject("MenuResultado", typeof(RectTransform)).AddComponent<ControladorMenus>();

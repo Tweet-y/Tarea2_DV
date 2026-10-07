@@ -12,6 +12,8 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     public static ControladorPartidaBotellas Instancia { get; private set; }
     public event Action EstadoActualizado;
     public event Action BotellaRecogida;
+    public event Action BotellaCurativaRecogida;
+    public IReadOnlyList<ObjetoEspecialColeccionable> Botellas => botellas;
     public event Action<Resultado> PartidaTerminada;
 
     [Header("Balance")]
@@ -76,14 +78,17 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         var botellasDelMapa = new List<ObjetoEspecialColeccionable>();
         foreach (var raiz in gameObject.scene.GetRootGameObjects())
             botellasDelMapa.AddRange(raiz.GetComponentsInChildren<ObjetoEspecialColeccionable>(true));
-        botellas = botellasDelMapa.ToArray();
+        botellas = botellasDelMapa.FindAll(b => b.tipo == ObjetoEspecialColeccionable.TipoBotella.Objetivo).ToArray();
         total = botellas.Length;
+        CrearBotellasCurativas();
 
         var jugador = GameObject.FindGameObjectWithTag("Player");
         if (jugador != null)
         {
             inputJugador = jugador.GetComponent<PlayerInput>();
             controladorJugador = jugador.GetComponent<StarterAssets.ThirdPersonController>();
+            if (controladorJugador != null && jugador.GetComponent<DanioCaida>() == null)
+                jugador.AddComponent<DanioCaida>();
         }
 
         var hud = new GameObject("CanvasGameplay", typeof(RectTransform)).AddComponent<ControladorGameplayHUD>();
@@ -179,6 +184,15 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
 
     private void AlRecoger(ObjetoEspecialColeccionable botella, GameObject jugador)
     {
+        if (botella != null && botella.gameObject.scene == gameObject.scene &&
+            botella.tipo == ObjetoEspecialColeccionable.TipoBotella.Curativa)
+        {
+            if (pausada || resultado != Resultado.EnCurso || !recogidas.Add(botella)) return;
+            ebriedad = Mathf.Max(0f, ebriedad - Mathf.Clamp(botella.curacion, 0f, .2f) * limiteEbriedad);
+            EstadoActualizado?.Invoke();
+            BotellaCurativaRecogida?.Invoke();
+            return;
+        }
         if (pausada || resultado != Resultado.EnCurso || botella == null || !Array.Exists(botellas, b => b == botella)) return;
         if (!recogidas.Add(botella)) return;
 
@@ -197,6 +211,46 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
 
         EstadoActualizado?.Invoke();
         BotellaRecogida?.Invoke();
+    }
+
+    private void CrearBotellasCurativas()
+    {
+        // Reutilizar la geometría de las botellas del nivel, en superficies ya accesibles.
+        foreach (var raiz in gameObject.scene.GetRootGameObjects())
+            foreach (var b in raiz.GetComponentsInChildren<ObjetoEspecialColeccionable>(true))
+                if (b.tipo == ObjetoEspecialColeccionable.TipoBotella.Curativa) return;
+        int cantidad = Mathf.Min(5, botellas.Length);
+        for (int i = 0; i < cantidad; i++)
+        {
+            var original = botellas[i * botellas.Length / cantidad];
+            var posicion = original.transform.position;
+            // Una superficie próxima y a la misma altura evita dejar curación en el aire.
+            var candidato = posicion + Vector3.right * 1.5f;
+            if (Physics.Raycast(candidato + Vector3.up * 2f, Vector3.down, out var suelo, 5f,
+                Physics.DefaultRaycastLayers, QueryTriggerInteraction.Ignore) &&
+                Mathf.Abs(suelo.point.y - posicion.y) < 2f)
+                posicion = new Vector3(candidato.x, posicion.y, candidato.z);
+            var copia = Instantiate(original, posicion, original.transform.rotation, original.transform.parent);
+            copia.name = "BotellaAzulCurativa_" + (i + 1);
+            copia.tipo = ObjetoEspecialColeccionable.TipoBotella.Curativa;
+            copia.puntos = 0;
+            copia.curacion = .08f;
+            copia.alRecoger = new UnityEngine.Events.UnityEvent();
+            copia.colorBrillo = new Color(.05f, .55f, 1f);
+            foreach (var renderer in copia.GetComponentsInChildren<Renderer>())
+            {
+                foreach (var material in renderer.materials)
+                {
+                    material.color = copia.colorBrillo;
+                    if (material.HasProperty("_EmissionColor"))
+                    {
+                        material.EnableKeyword("_EMISSION");
+                        material.SetColor("_EmissionColor", copia.colorBrillo * .5f);
+                    }
+                }
+            }
+            copia.gameObject.AddComponent<MaterialesBotellaCurativa>();
+        }
     }
 
     /// <summary>Aplica daño directo al jugador (aumenta la intoxicación / reduce la vida).</summary>

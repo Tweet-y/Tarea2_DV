@@ -33,6 +33,11 @@ Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel in
 - Al terminar el nivel y la pantalla de resumen, la misma carga asíncrona devuelve al menú inicial.
 
 ### Mecánicas
+- **Mapa de la ciudad:** radar circular inspirado en San Andreas, con borde negro grueso, edificios claros, calles negras y terrenos verdes. Tiene zoom de 3×, está centrado en el jugador y se desplaza con él. La ciudad se revela al explorar un radio de 22 metros y conserva las zonas descubiertas durante la partida. Los círculos amarillos de posibles botellas aparecen sólo en sectores descubiertos y desaparecen al recoger sus botellas. **M** amplía el panel con zoom de 1,5×, manteniendo la exploración y sin pausar la partida.
+- **Botellas azules:** cinco curativas distribuidas junto a ubicaciones accesibles de las botellas del nivel; recuperan un **8 %** de vida, hasta el máximo, sin sumar al objetivo ni a los puntos. La curación reduce la intoxicación según el sistema de vida existente.
+- **Caídas:** hasta **4 metros** sin daño; por encima se pierde **4,5 % de vida por metro adicional** al aterrizar. Los valores son configurables en `DanioCaida`.
+- **Victoria:** al completar las botellas objetivo, aparece `mission passed!` en dorado y `RESPECT + 99` en blanco, con contorno negro y opciones de volver a jugar o regresar al menú.
+- **Verificación integrada:** `Tools > Gameplay > Verificar mapa curacion caida y victoria` ejecuta una partida de prueba y escribe el resultado en `Logs/ciudad-final-validada.txt`.
 - **Coleccionables:** conteo en el HUD (`Moneda`).
 - **Vidas:** los obstáculos restan vidas o salud (`ControladorBolaPeso`, `ControladorCuracion`).
 - **Victoria y derrota:** el nivel detecta ambas condiciones y abre la pantalla de resumen antes de volver al menú.
