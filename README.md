@@ -9,7 +9,7 @@ Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel in
 ## Integración de requerimientos
 
 ### Scripting: manejo de corrutinas
-- La carga de escenas corre en una corrutina (`ControladorCargaEscena`): inicia `LoadSceneAsync`, actualiza la barra y el porcentaje frame a frame y activa la escena cuando la carga termina.
+- La carga de escenas corre en una corrutina (`ControladorMenus.CargarEscena`): inicia `LoadSceneAsync`, actualiza la barra y el porcentaje frame a frame y activa la escena cuando la carga termina.
 
 ### UI: HUD y botón de inicio
 - **Menú (`MenuInicio`):** botón de inicio que carga el nivel.
@@ -59,7 +59,6 @@ Assets/
 │   ├── ControladorBolaPeso.cs
 │   ├── ControladorCanion.cs
 │   ├── ControladorCanvas.cs
-│   ├── ControladorCargaEscena.cs
 │   ├── ControladorCuracion.cs
 │   ├── ControladorRandomIdle.cs
 │   ├── Moneda.cs

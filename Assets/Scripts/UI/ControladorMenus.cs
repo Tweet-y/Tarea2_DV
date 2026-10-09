@@ -161,7 +161,7 @@ public sealed class ControladorMenus : MonoBehaviour
         var banda = Rect(transform, "BandaTitulo", new Vector2(0, .40f), new Vector2(1, .70f));
         banda.gameObject.AddComponent<Image>().color = new Color(0, 0, 0, .72f);
         Color color = victoria ? new Color32(255, 183, 36, 255) : (Color)new Color32(166, 42, 33, 255);
-        var titulo = Texto(banda, "TituloResultado", victoria ? "mission passed!" : "Haz Muerto", 0, victoria ? 34 : 0, 1100, 100, victoria ? 78 : 82, color);
+        var titulo = Texto(banda, "TituloResultado", victoria ? "mission passed!" : "Has muerto", 0, victoria ? 34 : 0, 1100, 100, victoria ? 78 : 82, color);
         titulo.alignment = TextAlignmentOptions.Center;
         titulo.characterSpacing = victoria ? -3 : 9;
         titulo.fontStyle = victoria ? FontStyles.Bold : FontStyles.Normal;
@@ -175,14 +175,36 @@ public sealed class ControladorMenus : MonoBehaviour
         }
         var tituloGrupo = banda.gameObject.AddComponent<CanvasGroup>();
         var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .28f), new Vector2(.5f, .28f));
-        rectOpciones.sizeDelta = new Vector2(500, 190);
+        rectOpciones.sizeDelta = new Vector2(500, 260);
         opciones = rectOpciones.gameObject.AddComponent<CanvasGroup>();
-        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 85, 500, 28, 16, new Color32(207, 195, 212, 255));
+        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 96, 500, 68, 16, new Color32(207, 195, 212, 255));
         detalle.alignment = TextAlignmentOptions.Center;
         primerBoton = BotonPixel(rectOpciones, "Volver a jugar", 22, () => Cargar(EscenaJuego), 440);
         BotonPixel(rectOpciones, "Ir al menú principal", -45, () => Cargar(EscenaMenu), 440);
         CrearCarga();
-        if (animar && Application.isPlaying) StartCoroutine(EntradaMuerte(tituloGrupo));
+        if (animar && Application.isPlaying)
+        {
+            StartCoroutine(EntradaMuerte(tituloGrupo));
+            ReproducirCierre(victoria);
+        }
+    }
+
+    private void ReproducirCierre(bool victoria)
+    {
+        var clip = Resources.Load<AudioClip>(victoria ? "Sonido/Coins 10" : "Sonido/Explosion Gunshot_01");
+        if (clip == null) return;
+        var fuente = gameObject.AddComponent<AudioSource>();
+        fuente.playOnAwake = false;
+        fuente.spatialBlend = 0f;
+        fuente.clip = clip;
+        fuente.Play();
+        StartCoroutine(CortarSonido(fuente, 1.2f));
+    }
+
+    private static IEnumerator CortarSonido(AudioSource fuente, float segundos)
+    {
+        yield return new WaitForSecondsRealtime(segundos);
+        if (fuente != null) fuente.Stop();
     }
 
     private void EstiloSanAndreas(TMP_Text texto)

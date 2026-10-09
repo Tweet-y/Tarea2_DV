@@ -8,6 +8,7 @@ using UnityEngine.InputSystem;
 public sealed class ControladorPartidaBotellas : MonoBehaviour
 {
     public enum Resultado { EnCurso, Victoria, Derrota }
+    public enum Causa { Ninguna, Botellas, Desmayo, Agua }
 
     public static ControladorPartidaBotellas Instancia { get; private set; }
     public event Action EstadoActualizado;
@@ -44,6 +45,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     public float EbriedadNormalizada => Mathf.Clamp01(ebriedad / Mathf.Max(.01f, limiteEbriedad));
     public float Vida => 1f - EbriedadNormalizada;
     public Resultado Estado => resultado;
+    public Causa CausaFinal { get; private set; } = Causa.Ninguna;
     public bool EstaPausada => pausada;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -121,7 +123,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + ebriedadPorSegundo * Time.deltaTime);
         if (Mathf.Approximately(anterior, ebriedad)) return;
         if (ebriedad >= limiteEbriedad)
-            Finalizar(Resultado.Derrota);
+            Finalizar(Resultado.Derrota, Causa.Desmayo);
         tiempoActualizacionHud += Time.deltaTime;
         if (tiempoActualizacionHud >= .1f)
         {
@@ -205,9 +207,9 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + incremento);
         // Debe completar el objetivo antes de alcanzar el límite de ebriedad.
         if (ebriedad >= limiteEbriedad)
-            Finalizar(Resultado.Derrota);
+            Finalizar(Resultado.Derrota, Causa.Desmayo);
         else if (Recogidas >= total)
-            Finalizar(Resultado.Victoria);
+            Finalizar(Resultado.Victoria, Causa.Botellas);
 
         EstadoActualizado?.Invoke();
         BotellaRecogida?.Invoke();
@@ -260,7 +262,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
         ebriedad = Mathf.Min(limiteEbriedad, ebriedad + cantidadDanio);
 
         if (ebriedad >= limiteEbriedad)
-            Finalizar(Resultado.Derrota);
+            Finalizar(Resultado.Derrota, Causa.Desmayo);
 
         EstadoActualizado?.Invoke();
     }
@@ -269,14 +271,15 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
     {
         if (pausada || resultado != Resultado.EnCurso) return;
         ebriedad = limiteEbriedad;
-        Finalizar(Resultado.Derrota);
+        Finalizar(Resultado.Derrota, Causa.Agua);
         EstadoActualizado?.Invoke();
     }
 
-    private void Finalizar(Resultado nuevoResultado)
+    private void Finalizar(Resultado nuevoResultado, Causa causa)
     {
         if (resultado != Resultado.EnCurso) return;
         resultado = nuevoResultado;
+        CausaFinal = causa;
         if (inputJugador != null) inputJugador.enabled = false;
         if (controladorJugador != null) controladorJugador.enabled = false;
         if (controladorJugador != null)

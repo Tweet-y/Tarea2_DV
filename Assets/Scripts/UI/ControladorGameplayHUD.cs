@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -8,7 +9,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
 {
     private ControladorPartidaBotellas partida;
     private RectTransform ebriedadFill, vidaFill, icono;
-    private TMP_Text contador, restantes, aviso, feedback, puntos;
+    private TMP_Text contador, restantes, aviso, feedback, puntos, vidaEtiqueta;
     private float objetivoEbriedad, objetivoVida = 1f, visualEbriedad, visualVida = 1f;
     private float tiempoPickup;
     private RectTransform marcoMapa, vidaMapa, ebriedadMapa;
@@ -84,7 +85,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         contador = Texto(root, "BottleCounter", $"00 / {partida.Total:00}", new Vector2(99, 0), new Vector2(181, 36), 34, Color.white);
         Texto(root, "DrunkLabel", "EBRIEDAD", new Vector2(101, -40), new Vector2(179, 20), 17, Color.white);
         ebriedadFill = Barra(root, "DrunkMeter", new Vector2(99, -63), new Vector2(181, 17), new Color32(205, 205, 205, 255));
-        Texto(root, "HealthLabel", "VIDA", new Vector2(0, -98), new Vector2(280, 20), 17, Color.white);
+        vidaEtiqueta = Texto(root, "HealthLabel", "VIDA 100%", new Vector2(0, -98), new Vector2(280, 20), 17, Color.white);
         vidaFill = Barra(root, "PlayerHealth", new Vector2(0, -120), new Vector2(280, 20), new Color32(188, 37, 45, 255));
         restantes = Texto(root, "RemainingText", $"QUEDAN {partida.Total}", new Vector2(0, -146), new Vector2(280, 31), 29, new Color32(82, 142, 72, 255));
         aviso = Texto(root, "DangerStatus", "SOBRIO", new Vector2(0, -180), new Vector2(280, 22), 17, Color.white);
@@ -151,6 +152,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     {
         objetivoEbriedad = partida.EbriedadNormalizada;
         objetivoVida = partida.Vida;
+        vidaEtiqueta.text = $"VIDA {Mathf.RoundToInt(partida.Vida * 100f)}%";
         contador.text = $"{partida.Recogidas:00} / {partida.Total:00}";
         restantes.text = $"QUEDAN {partida.Restantes}";
         if (puntos != null) puntos.text = $"PUNTOS {partida.Puntos:0000}";
@@ -198,6 +200,19 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         feedback.rectTransform.sizeDelta = new Vector2(90, 26);
     }
 
+    private static string TextoCausa(ControladorPartidaBotellas.Causa causa)
+    {
+        switch (causa)
+        {
+            case ControladorPartidaBotellas.Causa.Botellas: return "Recogiste todas las botellas";
+            case ControladorPartidaBotellas.Causa.Desmayo: return "Te desmayaste";
+            case ControladorPartidaBotellas.Causa.Agua: return "Caíste al agua";
+            case ControladorPartidaBotellas.Causa.Ninguna: return "";
+            default:
+                throw new ArgumentOutOfRangeException(nameof(causa), causa, null);
+        }
+    }
+
     private void MostrarResultado(ControladorPartidaBotellas.Resultado estado)
     {
         Actualizar();
@@ -206,7 +221,8 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         if (objetivoInicial != null) objetivoInicial.gameObject.SetActive(false);
         bool victoria = estado == ControladorPartidaBotellas.Resultado.Victoria;
         var menu = new GameObject("MenuResultado", typeof(RectTransform)).AddComponent<ControladorMenus>();
-        menu.ConstruirResultado(victoria, $"{partida.Recogidas} / {partida.Total} BOTELLAS RECOGIDAS");
+        menu.ConstruirResultado(victoria,
+            $"{partida.Recogidas} / {partida.Total} BOTELLAS\nPUNTOS {partida.Puntos}\n{TextoCausa(partida.CausaFinal)}");
     }
 
     private RectTransform Barra(Transform parent, string nombre, Vector2 pos, Vector2 size, Color color)
