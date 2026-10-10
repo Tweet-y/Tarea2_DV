@@ -56,11 +56,23 @@ public class ObjetoEspecialColeccionable : MonoBehaviour
 
     void Awake()
     {
-        // Asegurar que el collider esté configurado como Trigger
-        Collider col = GetComponent<Collider>();
-        if (col != null)
+        // Tamaño absoluto desde el mesh: los clones curativos no vuelven a ampliarlo.
+        var meshCollider = GetComponent<MeshCollider>();
+        var mesh = meshCollider != null ? meshCollider.sharedMesh : GetComponent<MeshFilter>()?.sharedMesh;
+        if (mesh != null)
         {
-            col.isTrigger = true;
+            var caja = GetComponent<BoxCollider>();
+            if (caja == null) caja = gameObject.AddComponent<BoxCollider>();
+            caja.center = mesh.bounds.center;
+            caja.size = mesh.bounds.size * 1.3f;
+            caja.isTrigger = true;
+            caja.enabled = true;
+            if (meshCollider != null) meshCollider.enabled = false;
+        }
+        else
+        {
+            var col = GetComponent<Collider>();
+            if (col != null) col.isTrigger = true;
         }
 
         // Configurar la luz de brillo si no fue asignada en el inspector

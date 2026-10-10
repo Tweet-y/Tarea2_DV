@@ -19,6 +19,8 @@ public sealed class ControladorMenus : MonoBehaviour
     private Image progresoCarga;
     private GameObject carga;
     private bool cambiandoEscena;
+    private bool accionEnCurso;
+    private AudioSource sonidoBotones;
 
     private void OnEnable()
     {
@@ -31,10 +33,10 @@ public sealed class ControladorMenus : MonoBehaviour
             {
                 case "Iniciar Juego":
                 case "Nuevo juego":
-                case "Volver a jugar": boton.onClick.AddListener(() => Cargar(EscenaJuego)); break;
-                case "Continuar": boton.onClick.AddListener(ContinuarPartida); break;
-                case "Ir al menú principal": boton.onClick.AddListener(() => Cargar(EscenaMenu)); break;
-                case "Salir": boton.onClick.AddListener(Salir); break;
+                case "Volver a jugar": boton.onClick.AddListener(() => EjecutarBoton(() => Cargar(EscenaJuego))); break;
+                case "Continuar": boton.onClick.AddListener(() => EjecutarBoton(ContinuarPartida)); break;
+                case "Ir al menú principal": boton.onClick.AddListener(() => EjecutarBoton(() => Cargar(EscenaMenu))); break;
+                case "Salir": boton.onClick.AddListener(() => EjecutarBoton(Salir)); break;
             }
         }
     }
@@ -126,7 +128,7 @@ public sealed class ControladorMenus : MonoBehaviour
         if (ControladorPartidaBotellas.Instancia != null) ControladorPartidaBotellas.Instancia.Continuar();
     }
 
-    private static Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion, float ancho = 300)
+    private Button BotonPixel(Transform padre, string valor, float y, UnityEngine.Events.UnityAction accion, float ancho = 300)
     {
         Caja(padre, valor + "Sombra", 4, y - 5, ancho, 56, new Color32(21, 22, 43, 255));
         var rect = Caja(padre, valor, 0, y, ancho, 56, Color.white);
@@ -149,8 +151,57 @@ public sealed class ControladorMenus : MonoBehaviour
         colores.pressedColor = new Color32(98, 184, 165, 255);
         colores.fadeDuration = .08f;
         boton.colors = colores;
-        boton.onClick.AddListener(accion);
+        boton.onClick.AddListener(() => EjecutarBoton(accion));
         return boton;
+    }
+
+    private void EjecutarBoton(UnityEngine.Events.UnityAction accion)
+    {
+        if (accionEnCurso || cambiandoEscena) return;
+        accionEnCurso = true;
+        StartCoroutine(SonarYActuar(accion));
+    }
+
+    private IEnumerator SonarYActuar(UnityEngine.Events.UnityAction accion)
+    {
+        if (sonidoBotones == null)
+        {
+            sonidoBotones = gameObject.AddComponent<AudioSource>();
+            sonidoBotones.playOnAwake = false;
+            sonidoBotones.spatialBlend = 0f;
+            sonidoBotones.ignoreListenerPause = true;
+            sonidoBotones.volume = .45f;
+            sonidoBotones.clip = Resources.Load<AudioClip>("Sonido/Coins 10");
+        }
+        if (sonidoBotones.clip != null)
+        {
+            sonidoBotones.Play();
+            // El clic arranca en pausa; el resto sigue en otro objeto para que el cambio de escena no lo corte.
+            yield return new WaitForSecondsRealtime(.18f);
+            ConservarClic();
+        }
+        accion.Invoke();
+        accionEnCurso = false;
+    }
+
+    private void ConservarClic()
+    {
+        if (sonidoBotones == null || sonidoBotones.clip == null || !sonidoBotones.isPlaying) return;
+        float instante = sonidoBotones.time;
+        var clip = sonidoBotones.clip;
+        float volumen = sonidoBotones.volume;
+        sonidoBotones.Stop();
+        var objeto = new GameObject("ClicBoton");
+        DontDestroyOnLoad(objeto);
+        var fuente = objeto.AddComponent<AudioSource>();
+        fuente.playOnAwake = false;
+        fuente.spatialBlend = 0f;
+        fuente.ignoreListenerPause = true;
+        fuente.volume = volumen;
+        fuente.clip = clip;
+        fuente.Play();
+        fuente.time = instante;
+        Destroy(objeto, Mathf.Max(.05f, clip.length - instante));
     }
 
     public void ConstruirResultado(bool victoria, string resumen, bool animar = true)
@@ -165,28 +216,42 @@ public sealed class ControladorMenus : MonoBehaviour
         titulo.alignment = TextAlignmentOptions.Center;
         titulo.characterSpacing = victoria ? -3 : 9;
         titulo.fontStyle = victoria ? FontStyles.Bold : FontStyles.Normal;
+        AjustarAnchoTitulo(titulo);
         if (victoria)
         {
             EstiloSanAndreas(titulo);
             var respeto = Texto(banda, "RespetoVictoria", "RESPECT + 99", 0, -47, 1100, 72, 52, Color.white);
             respeto.alignment = TextAlignmentOptions.Center;
             respeto.fontStyle = FontStyles.Bold;
+            AjustarAnchoTitulo(respeto);
             EstiloSanAndreas(respeto);
         }
         var tituloGrupo = banda.gameObject.AddComponent<CanvasGroup>();
-        var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .28f), new Vector2(.5f, .28f));
-        rectOpciones.sizeDelta = new Vector2(500, 260);
+        var rectOpciones = Rect(transform, "OpcionesResultado", new Vector2(.5f, .24f), new Vector2(.5f, .24f));
+        rectOpciones.sizeDelta = new Vector2(600, 290);
         opciones = rectOpciones.gameObject.AddComponent<CanvasGroup>();
-        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 96, 500, 68, 16, new Color32(207, 195, 212, 255));
+        var detalle = Texto(rectOpciones, "Resumen", resumen, 0, 58, 600, 96, 24, new Color32(207, 195, 212, 255));
         detalle.alignment = TextAlignmentOptions.Center;
-        primerBoton = BotonPixel(rectOpciones, "Volver a jugar", 22, () => Cargar(EscenaJuego), 440);
-        BotonPixel(rectOpciones, "Ir al menú principal", -45, () => Cargar(EscenaMenu), 440);
+        detalle.textWrappingMode = TextWrappingModes.Normal;
+        primerBoton = BotonPixel(rectOpciones, "Volver a jugar", -26, () => Cargar(EscenaJuego), 440);
+        BotonPixel(rectOpciones, "Ir al menú principal", -93, () => Cargar(EscenaMenu), 440);
         CrearCarga();
         if (animar && Application.isPlaying)
         {
             StartCoroutine(EntradaMuerte(tituloGrupo));
             ReproducirCierre(victoria);
         }
+    }
+
+    private static void AjustarAnchoTitulo(TMP_Text texto)
+    {
+        var rect = texto.rectTransform;
+        rect.anchorMin = new Vector2(.04f, .5f);
+        rect.anchorMax = new Vector2(.96f, .5f);
+        rect.sizeDelta = new Vector2(0, rect.sizeDelta.y);
+        texto.enableAutoSizing = true;
+        texto.fontSizeMin = 36;
+        texto.fontSizeMax = texto.fontSize;
     }
 
     private void ReproducirCierre(bool victoria)

@@ -2,7 +2,7 @@
 
 Proyecto de videojuego desarrollado en **Unity**, correspondiente a la segunda evaluación de la asignatura de Desarrollo de Videojuegos. Es un juego de **plataformas en tercera persona**, de temática libre: menú inicial, un nivel jugable y una pantalla de resumen al terminar.
 
-Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel incluye obstáculos que quitan vidas. No se requieren enemigos.
+Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel incluye obstáculos que reducen la salud. No se requieren enemigos.
 
 ---
 
@@ -13,20 +13,20 @@ Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel in
 
 ### UI: HUD y botón de inicio
 - **Menú (`MenuInicio`):** botón de inicio que carga el nivel.
-- **HUD:** textos en pantalla para vidas o salud (`ControladorCanvas`, `ControladorBarraSalud`) y conteo de coleccionables.
+- **HUD:** salud, botellas objetivo y puntos actualizados por `ControladorGameplayHUD` desde `ControladorPartidaBotellas`.
 - **Cierre:** pantalla de resumen con el resultado de la partida, y desde ahí el regreso al menú.
 
 ### Sonido: efectos y música de fondo
 - **Música de fondo** en loop durante el nivel.
 - **Efectos del juego:** recolección, daño por obstáculos, victoria y derrota.
-- **Efectos de interfaz:** botones del menú y de la pantalla de resumen.
+- **Efectos de interfaz:** el mismo efecto de moneda en los botones de inicio, pausa y resumen. Se escucha con la partida en pausa y no se corta al cambiar de escena.
 
 ### Input: teclado, ratón y gamepad
 - El jugador se controla con el **Input System** y la base de `ThirdPersonController` (Starter Assets): movimiento, cámara y salto con teclado, ratón y gamepad.
 
 ### Personaje animado
 - Personaje en tercera persona a partir de `ThirdPersonController` y los prefabs en `Assets/Prefabs/Personaje`.
-- Animaciones de locomoción e idle en `Assets/Animaciones/Personajes` (`ControladorRandomIdle`).
+- Animaciones de locomoción e idle en `Assets/Animaciones/Personajes` (`CJLocomotionAnimation`).
 
 ### Gestión de escenas
 - Una escena de menú con botones que cargan el nivel de forma **asíncrona**, con pantalla de progreso.
@@ -38,9 +38,18 @@ Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel in
 - **Caídas:** hasta **4 metros** sin daño; por encima se pierde **4,5 % de vida por metro adicional** al aterrizar. Los valores son configurables en `DanioCaida`.
 - **Victoria:** al completar las botellas objetivo, aparece `mission passed!` en dorado y `RESPECT + 99` en blanco, con contorno negro y opciones de volver a jugar o regresar al menú.
 - **Verificación integrada:** `Tools > Gameplay > Verificar mapa curacion caida y victoria` ejecuta una partida de prueba y escribe el resultado en `Logs/ciudad-final-validada.txt`.
-- **Coleccionables:** conteo en el HUD (`Moneda`).
-- **Vidas:** los obstáculos restan vidas o salud (`ControladorBolaPeso`, `ControladorCuracion`).
+- **Coleccionables:** `ObjetoEspecialColeccionable` recoge botellas una sola vez. El trigger rectangular mide el tamaño original del mesh × **1,30** en cada eje, también para curativas; el modelo conserva su tamaño.
+- **Salud y ebriedad:** recoger botellas objetivo aumenta la ebriedad y reduce la salud; las azules recuperan salud. La ebriedad también aumenta con el tiempo a **0,001 / 1,20 = 0,00083333 por segundo**, dando un 20 % más de margen temporal con los mismos daños y curaciones. Los obstáculos aplican daño mediante `TrampaDanio`.
 - **Victoria y derrota:** el nivel detecta ambas condiciones y abre la pantalla de resumen antes de volver al menú.
+
+---
+
+## Controles
+
+- **WASD:** mover; **ratón:** cámara; **Espacio:** saltar; **Shift:** correr.
+- **Esc:** pausar y continuar; **M:** ampliar o reducir mapa sin pausar.
+- **Gamepad:** sticks para movimiento/cámara, botón sur para saltar y gatillo izquierdo para correr.
+- Objetivo: reunir todas las botellas objetivo antes de quedarse sin salud. Aprovechar las cinco azules para curarse.
 
 ---
 
@@ -48,21 +57,17 @@ Al cerrar el resumen, el juego vuelve al menú con carga asíncrona. El nivel in
 
 ```
 Assets/
-├── Animaciones/           # Controladores y clips (personaje, moneda, barra de salud)
+├── Animaciones/           # Controladores y clips del personaje
 ├── Inputs/                # Acciones de input
 ├── Materiales/            # Materiales del nivel y del personaje
 ├── Prefabs/               # Personaje, coleccionables y obstáculos
 ├── Scenes/                # MenuInicio y escenas de nivel
 ├── Scripts/               # Lógica de juego en C#
-│   ├── ControladorBala.cs
-│   ├── ControladorBarraSalud.cs
-│   ├── ControladorBolaPeso.cs
-│   ├── ControladorCanion.cs
-│   ├── ControladorCanvas.cs
-│   ├── ControladorCuracion.cs
-│   ├── ControladorRandomIdle.cs
-│   ├── Moneda.cs
-│   └── TestColisiones.cs
+│   ├── ObjetoEspecialColeccionable.cs
+│   ├── CJLocomotionAnimation.cs
+│   ├── ControladorMusica.cs
+│   ├── Gameplay/           # Partida, caída, trampas y botellas curativas
+│   └── UI/                 # Menús, HUD y mapa
 ├── Starter Assets/        # ThirdPersonController e input de ejemplo
 ├── Synty/                 # Modelos y animaciones de apoyo
 └── TextMesh Pro/          # Fuentes y recursos de UI

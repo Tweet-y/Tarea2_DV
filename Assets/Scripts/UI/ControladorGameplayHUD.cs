@@ -14,7 +14,7 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private float tiempoPickup;
     private RectTransform marcoMapa, vidaMapa, ebriedadMapa;
     private RectTransform objetivoInicial;
-    private float tiempoObjetivo = 8f;
+    private float tiempoObjetivo = 12f;
     private readonly List<Material> materialesTexto = new List<Material>();
 
     public void Inicializar(ControladorPartidaBotellas fuente)
@@ -93,15 +93,23 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
         feedback = Texto(root, "BottlePickupFeedback", "+1", new Vector2(48, -66), new Vector2(35, 26), 24, Color.white);
         feedback.gameObject.SetActive(false);
 
-        objetivoInicial = Nodo(transform, "ObjetivoInicial", new Vector2(.5f, 0f),
-            new Vector2(0, 42), new Vector2(900, 106));
+        objetivoInicial = Nodo(transform, "ObjetivoInicial", Vector2.zero,
+            Vector2.zero, Vector2.zero);
         objetivoInicial.pivot = new Vector2(.5f, 0f);
+        objetivoInicial.anchorMin = Vector2.zero;
+        objetivoInicial.anchorMax = new Vector2(1f, 0f);
+        objetivoInicial.offsetMin = new Vector2(304, 42);
+        objetivoInicial.offsetMax = new Vector2(-24, 206);
         var fondoObjetivo = objetivoInicial.gameObject.AddComponent<Image>();
         fondoObjetivo.color = new Color32(17, 21, 20, 225);
         fondoObjetivo.raycastTarget = false;
         var objetivo = Texto(objetivoInicial, "TextoObjetivo",
-            "Recoge todas las botellas. Azules: +8% de vida.\nM: mapa · Explora para revelar zonas de búsqueda · Cuidado al caer.",
-            new Vector2(24, -12), new Vector2(852, 82), 26, Color.white);
+            "Recoge todas las botellas: suben ebriedad y reducen vida.\nAzules: +8% de vida. Cuidado al caer.\nWASD: mover · Ratón: cámara\nEspacio: saltar · Shift: correr · ESC: pausa\nM: mapa · Explora para revelar zonas.",
+            Vector2.zero, Vector2.zero, 20, Color.white);
+        objetivo.rectTransform.anchorMin = Vector2.zero;
+        objetivo.rectTransform.anchorMax = Vector2.one;
+        objetivo.rectTransform.offsetMin = new Vector2(24, 12);
+        objetivo.rectTransform.offsetMax = new Vector2(-24, -12);
         objetivo.alignment = TextAlignmentOptions.Center;
         objetivo.textWrappingMode = TextWrappingModes.Normal;
 
@@ -163,10 +171,13 @@ public sealed class ControladorGameplayHUD : MonoBehaviour
     private void Update()
     {
         if (partida == null) return;
-        if (objetivoInicial != null && objetivoInicial.gameObject.activeSelf && !partida.EstaPausada)
+        if (objetivoInicial != null && tiempoObjetivo > 0f
+            && partida.Estado == ControladorPartidaBotellas.Resultado.EnCurso)
         {
-            tiempoObjetivo = Mathf.Max(0f, tiempoObjetivo - Time.deltaTime);
-            if (tiempoObjetivo <= 0f) objetivoInicial.gameObject.SetActive(false);
+            if (!partida.EstaPausada)
+                tiempoObjetivo = Mathf.Max(0f, tiempoObjetivo - Time.deltaTime);
+            // La pausa ocupa el mismo borde inferior; las instrucciones vuelven al continuar.
+            objetivoInicial.gameObject.SetActive(tiempoObjetivo > 0f && !partida.EstaPausada);
         }
         visualEbriedad = Mathf.MoveTowards(visualEbriedad, objetivoEbriedad, Time.unscaledDeltaTime * 2f);
         visualVida = Mathf.MoveTowards(visualVida, objetivoVida, Time.unscaledDeltaTime * 2f);

@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using TMPro;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -103,6 +104,12 @@ public static class ValidarMenus
             }
             else if (paso == 3 && EditorApplication.timeSinceStartup - desde > 2.8 && menu != null)
             {
+                TMP_Text resumen = null;
+                foreach (var texto in UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None))
+                    if (texto.name == "Resumen") resumen = texto;
+                if (resumen == null) throw new Exception("Falta el resumen de derrota.");
+                resumen.ForceMeshUpdate();
+                Exigir(!resumen.isTextOverflowing && resumen.fontSize == 24, "Resumen de derrota completo y legible a 24 puntos.");
                 Exigir(EventSystem.current != null && EventSystem.current.currentSelectedGameObject != null, "Opciones de muerte tienen selección de teclado.");
                 ScreenCapture.CaptureScreenshot("Logs/menu-muerte-play.png");
                 desde = EditorApplication.timeSinceStartup;

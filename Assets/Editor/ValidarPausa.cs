@@ -16,6 +16,7 @@ public static class ValidarPausa
     private static string informe;
     private static double desde;
     private static float vida, tiempo;
+    private static ControladorPartidaBotellas partidaAntesDelClic;
     private static Keyboard teclado;
     private static InputSettings ajustesOriginales, ajustesPrueba;
 
@@ -124,17 +125,34 @@ public static class ValidarPausa
                 Exigir(Time.timeScale == 1 && !AudioListener.pause && Cursor.lockState == CursorLockMode.Locked, "Segundo Esc reanuda la partida.");
                 InputSystem.QueueStateEvent(teclado, new KeyboardState());
                 partida.AlternarPausa();
-                Pulsar(UnityEngine.Object.FindFirstObjectByType<ControladorMenus>(), "Continuar");
-                Exigir(!partida.EstaPausada && GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerInput>().enabled, "Continuar restaura el control del jugador.");
+                menu = UnityEngine.Object.FindFirstObjectByType<ControladorMenus>();
+                partidaAntesDelClic = partida;
+                Pulsar(menu, "Continuar");
+                ExigirSonidoEnPausa(menu);
+                Pulsar(menu, "Continuar");
+                Pulsar(menu, "Nuevo juego");
+                ExigirSonidoEnPausa(menu);
+                Exigir(partida.EstaPausada && Time.timeScale == 0 && AudioListener.pause,
+                    "El clic espera en tiempo real sin levantar prematuramente la pausa.");
+                Cambiar(41);
+            }
+            else if (paso == 41 && EditorApplication.timeSinceStartup - desde > .5)
+            {
+                Exigir(partida == partidaAntesDelClic && !partida.EstaPausada &&
+                    GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerInput>().enabled,
+                    "Continuar restaura el control; clics repetidos y otro botón durante la espera no reinician la partida.");
                 Cambiar(5);
             }
             else if (paso == 5 && EditorApplication.timeSinceStartup - desde > .2)
             {
                 partida.AlternarPausa();
-                Pulsar(UnityEngine.Object.FindFirstObjectByType<ControladorMenus>(), "Nuevo juego");
+                menu = UnityEngine.Object.FindFirstObjectByType<ControladorMenus>();
+                partidaAntesDelClic = partida;
+                Pulsar(menu, "Nuevo juego");
+                ExigirSonidoEnPausa(menu);
                 Cambiar(6);
             }
-            else if (paso == 6 && partida != null && !partida.EstaPausada && SceneManager.GetActiveScene().name == ControladorMenus.EscenaJuego)
+            else if (paso == 6 && partida != null && partida != partidaAntesDelClic && !partida.EstaPausada && SceneManager.GetActiveScene().name == ControladorMenus.EscenaJuego)
             {
                 Exigir(Time.timeScale == 1 && !AudioListener.pause && partida.Recogidas == 0 && partida.Puntos == 0 && partida.Vida > .99f, "Nuevo juego reinicia la partida y sale de pausa.");
                 partida.AlternarPausa();
@@ -171,6 +189,13 @@ public static class ValidarPausa
         menu.GetComponentsInChildren<Button>().First(b => b.name == nombre).onClick.Invoke();
         informe += "OK: botón " + nombre + ".\n";
         Guardar();
+    }
+
+    private static void ExigirSonidoEnPausa(ControladorMenus menu)
+    {
+        var fuentes = menu.GetComponents<AudioSource>().Where(f => f.ignoreListenerPause).ToArray();
+        Exigir(fuentes.Length == 1 && fuentes[0].clip != null && fuentes[0].isPlaying && AudioListener.pause,
+            "El sonido del botón se reproduce aunque AudioListener esté pausado.");
     }
 
     private static void Exigir(bool condicion, string mensaje)

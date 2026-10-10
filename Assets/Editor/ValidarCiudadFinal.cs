@@ -15,6 +15,8 @@ public static class ValidarCiudadFinal
     private static int paso;
     private static double desde;
     private static float vidaAntes;
+    private static double desdeCaptura;
+    private static DateTime fechaCaptura;
     private static string informe = "";
     static ValidarCiudadFinal()
     {
@@ -24,8 +26,11 @@ public static class ValidarCiudadFinal
     public static void Ejecutar()
     {
         Directory.CreateDirectory("Logs");
+        paso = 0;
+        informe = "";
         SessionState.SetBool(Clave, true);
         EditorSceneManager.OpenScene("Assets/Scenes/MenuInicio.unity");
+        if (!Application.isBatchMode) EditorApplication.ExecuteMenuItem("Window/General/Game");
         Registrar();
         EditorApplication.isPlaying = true;
     }
@@ -57,11 +62,34 @@ public static class ValidarCiudadFinal
             }
             else if (paso == 1 && partida != null && partida.Total > 0)
             {
+                Canvas.ForceUpdateCanvases();
+                var instrucciones = UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None)
+                    .First(t => t.name == "TextoObjetivo");
+                instrucciones.ForceMeshUpdate();
+                Exigir(!instrucciones.isTextOverflowing, "Las instrucciones completas caben en el HUD.");
+                Capturar("Logs/pulido-hud.png");
+                paso = 11;
+            }
+            else if (paso == 11 && CapturaLista("Logs/pulido-hud.png"))
+            {
                 var jugador = GameObject.FindGameObjectWithTag("Player");
                 var botellas = UnityEngine.Object.FindObjectsByType<ObjetoEspecialColeccionable>(FindObjectsSortMode.None);
                 var azules = botellas.Where(b => b.tipo == ObjetoEspecialColeccionable.TipoBotella.Curativa).ToArray();
                 Exigir(azules.Length == 5, "Existen cinco botellas curativas azules.");
                 Exigir(partida.Total == botellas.Length - azules.Length, "Las azules no forman parte del objetivo.");
+                foreach (var botella in botellas)
+                {
+                    var mesh = botella.GetComponent<MeshCollider>();
+                    var caja = botella.GetComponent<BoxCollider>();
+                    Exigir(mesh != null && mesh.sharedMesh != null && !mesh.enabled && caja != null && caja.enabled && caja.isTrigger
+                        && (caja.center - mesh.sharedMesh.bounds.center).sqrMagnitude < .000001f
+                        && (caja.size - mesh.sharedMesh.bounds.size * 1.3f).sqrMagnitude < .000001f,
+                        "Hitbox rectangular x1,30 una sola vez: " + botella.name);
+                }
+                var tasa = typeof(ControladorPartidaBotellas).GetField("ebriedadPorSegundo",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                Exigir(tasa != null && Mathf.Abs((float)tasa.GetValue(partida) - .001f / 1.2f) < .00000001f,
+                    "Ebriedad temporal dividida por 1,20.");
                 var mapa = UnityEngine.Object.FindFirstObjectByType<MapaCiudadGraphic>();
                 Exigir(mapa != null, "El mapa de la ciudad está integrado en el HUD.");
                 Canvas.ForceUpdateCanvases();
@@ -106,6 +134,21 @@ public static class ValidarCiudadFinal
                     "Victoria muestra mission passed! y RESPECT + 99.");
                 Exigir(!UnityEngine.Object.FindFirstObjectByType<ControladorGameplayHUD>().transform.Find("MapaCiudad").gameObject.activeSelf,
                     "El mapa se oculta al finalizar.");
+                desdeCaptura = EditorApplication.timeSinceStartup;
+                paso = 3;
+            }
+            else if (paso == 3 && EditorApplication.timeSinceStartup - desdeCaptura > 2.5)
+            {
+                Canvas.ForceUpdateCanvases();
+                var resumen = UnityEngine.Object.FindObjectsByType<TMP_Text>(FindObjectsSortMode.None)
+                    .First(t => t.name == "Resumen");
+                resumen.ForceMeshUpdate();
+                Exigir(!resumen.isTextOverflowing && resumen.fontSize == 24, "Resumen de victoria completo y legible a 24 puntos.");
+                Capturar("Logs/pulido-victoria.png");
+                paso = 4;
+            }
+            else if (paso == 4 && CapturaLista("Logs/pulido-victoria.png"))
+            {
                 Terminar(0);
             }
         }
@@ -116,11 +159,23 @@ public static class ValidarCiudadFinal
             Terminar(1);
         }
     }
+    private static void Capturar(string archivo)
+    {
+        fechaCaptura = DateTime.UtcNow;
+        desdeCaptura = EditorApplication.timeSinceStartup;
+        ScreenCapture.CaptureScreenshot(archivo);
+    }
+    private static bool CapturaLista(string archivo)
+    {
+        return EditorApplication.timeSinceStartup - desdeCaptura > .25 && File.Exists(archivo)
+            && File.GetLastWriteTimeUtc(archivo) >= fechaCaptura && new FileInfo(archivo).Length > 0;
+    }
     private static void Terminar(int codigo)
     {
         SessionState.SetBool(Clave, false);
         EditorApplication.update -= Avanzar;
         EditorApplication.isPlaying = false;
-        if (Application.isBatchMode) EditorApplication.Exit(codigo);
+        if (Application.isBatchMode || Environment.GetCommandLineArgs().Contains("ValidarCiudadFinal.Ejecutar"))
+            EditorApplication.Exit(codigo);
     }
 }

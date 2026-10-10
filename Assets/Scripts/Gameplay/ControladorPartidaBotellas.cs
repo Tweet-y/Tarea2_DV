@@ -19,7 +19,7 @@ public sealed class ControladorPartidaBotellas : MonoBehaviour
 
     [Header("Balance")]
     [SerializeField, Min(0.01f)] private float ebriedadPorBotella = 0.04f;
-    [SerializeField, Min(0f)] private float ebriedadPorSegundo = 0.001f;
+    [SerializeField, Min(0f)] private float ebriedadPorSegundo = 0.001f / 1.2f;
     [SerializeField, Range(0f, 1f)] private float limiteEbriedad = 1f;
 
     private readonly HashSet<ObjetoEspecialColeccionable> recogidas = new HashSet<ObjetoEspecialColeccionable>();
